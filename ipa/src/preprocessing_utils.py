@@ -3,6 +3,7 @@ import pandas as pd
 from skimage.feature import blob_log
 from localization_utils import gauss_single_spot,gauss_single_spot_2d
 from skimage.morphology import disk
+import matplotlib.pyplot as plt
 
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
 
@@ -129,18 +130,23 @@ def heatmap_detection(raw_im:np.array,frame:int,df:pd.DataFrame,name:str)-> tupl
     """
     # create image with extended boarders to be able to take bbox
 
-    im = np.pad(raw_im[frame],3)
+    im = np.pad(raw_im[frame],4).T
 
     # create the same for the mask
 
-    im_mask = np.pad(np.ones_like(raw_im[frame],dtype=int),3)
+    im_mask = np.pad(np.ones_like(raw_im[frame],dtype=int),4)
 
     spot = []
     for i in df.iloc:
-        x,y = int(i.x+2),int(i.y+2)
+        x,y = int(i.x+3),int(i.y+3)
         patch = im[x-2:x+3,y-2:y+3]
-        patch_mask = im_mask[x-2:x+3,y-2:y+3]*disk(2)  # get only a disk in the bbox
-        spot.append(patch[patch_mask].ravel()) # get a 1d list of all bbox 
+        #print(patch)
+        #break
+        #patch_mask = im_mask[x-4:x+5,y-4:y+5]*disk(4)  # get only a disk in the bbox
+        #masked_patch = patch[patch_mask]
+        #print(masked_patch)
+        #break
+        spot.append(patch.ravel()) # get a 1d list of all bbox 
 
     med = np.median(spot,axis=1) # median of bbox where there are spots
     sd = np.std(spot,axis=1) # sd of bbox where there are spots
