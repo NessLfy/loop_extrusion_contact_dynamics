@@ -4,6 +4,8 @@ from skimage.feature import blob_log
 from localization_utils import gauss_single_spot,gauss_single_spot_2d
 from skimage.morphology import disk
 import matplotlib.pyplot as plt
+import logging
+from datetime import datetime
 
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
 
@@ -183,3 +185,25 @@ def heatmap_detection(raw_im:np.array,frame:int,df:pd.DataFrame,name:str)-> tupl
     heatmap = np.array(heatmap)
 
     return heatmap,sd,med
+
+def _create_logger(name: str) -> logging.Logger:
+    """
+    Create logger which logs to <timestamp>-<name>.log inside the current
+    working directory.
+
+    Args: 
+        name (str): Name of the logger
+    
+    Returns:
+        logging.Logger: Logger
+    """
+    logger = logging.Logger(name.capitalize())
+    now = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    handler = logging.FileHandler(f"{now}-{name}.log")
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
