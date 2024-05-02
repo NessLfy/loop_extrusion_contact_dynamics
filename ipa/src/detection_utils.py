@@ -80,7 +80,7 @@ def hmax_detection_fast(raw_im:np.array,frame:int,sd:float,n:int = 2,thresh:floa
     array = np.array([y,x]).T
     array = set([tuple(i) for i in array])
     y,x = zip(*array)
-
+    print(len(x))
     partial_fit = partial(gauss_single_spot_2d,raw_im[frame])
     
     k = [(x[i],y[i]) for i in range(len(x))]

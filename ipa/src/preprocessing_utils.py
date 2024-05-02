@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from skimage.feature import blob_log
-from localization_utils import gauss_single_spot
+from localization_utils import gauss_single_spot, gauss_single_spot_2d
 from skimage.morphology import disk
 
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
@@ -25,7 +25,7 @@ def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10
     x_loc =[]
     y_loc =[]
     for i in df.iloc:
-        y,x,*_ = gauss_single_spot(ima,i.x,i.y)
+        y,x,*_ = gauss_single_spot_2d(ima,i.x,i.y)
         x_loc.append(x)
         y_loc.append(y)
 
@@ -129,7 +129,7 @@ def heatmap_detection(raw_im:np.array,frame:int,df:pd.DataFrame,name:str)-> tupl
     """
     # create image with extended boarders to be able to take bbox
 
-    im = np.pad(raw_im[frame],3)
+    im = np.pad(raw_im[frame],3).T
 
     # create the same for the mask
 
