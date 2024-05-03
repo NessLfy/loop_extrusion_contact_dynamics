@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 def assign_closest(df1,df2,cutoff):
-    d = distance_matrix(df1[['x','y','z']].values,df2[['x','y','z']].values)
+    d = distance_matrix(df1[['x_um','y_um','z_um']].values,df2[['x_um','y_um','z_um']].values)
     matched = []
 
     for i in range(len(d)):
