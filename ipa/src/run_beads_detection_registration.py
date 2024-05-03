@@ -31,9 +31,9 @@ def main(path:str,name_of_run:str,n:int,thresh:float,threads:int,cutoff:float,sa
 
         logger.info('computing the number of detections for different thresholds')
         intensity_cutoffs = np.arange(0.1,0.9,0.01)
-        logger.info(f'Intensity cutoffs: {intensity_cutoffs}')
-        for t in tqdm(intensity_cutoffs):
-            n_detections.append(len(pre.get_loc(im=im_c1,frame = im_c1.shape[0]//2,thresh=t,mins=1.974,maxs=3)))
+        # logger.info(f'Intensity cutoffs: {intensity_cutoffs}')
+        # for t in tqdm(intensity_cutoffs):
+        #     n_detections.append(len(pre.get_loc(im=im_c1,frame = im_c1.shape[0]//2,thresh=t,mins=1.974,maxs=3)))
 
 
         h = pre.compute_h_param(im=im_c1,frame = im_c1.shape[0]//2,thresh=0.2)
@@ -65,11 +65,11 @@ def main(path:str,name_of_run:str,n:int,thresh:float,threads:int,cutoff:float,sa
         cutoffs=np.arange(0.1,1,0.01)
         n_matched=[]
 
-        logger.info('computing the number of matched detections for different cutoffs')
-        logger.info(f'Cutoffs: {cutoffs}')
-        for c in tqdm(cutoffs):
-            matched = cor.assign_closest(detections_f[detections_f.channel ==1],detections_f[detections_f.channel ==2],c)
-            n_matched.append(len(matched))
+        # logger.info('computing the number of matched detections for different cutoffs')
+        # logger.info(f'Cutoffs: {cutoffs}')
+        # for c in tqdm(cutoffs):
+        #     matched = cor.assign_closest(detections_f[detections_f.channel ==1],detections_f[detections_f.channel ==2],c)
+        #     n_matched.append(len(matched))
 
         logger.info('computing the matching')
         matched = cor.assign_closest(detections_f[detections_f.channel ==1],detections_f[detections_f.channel ==2],cutoff)
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     for i in tqdm(images_path):
         _,n_detections,_,n_matched,detections_1 = main(i,**config)
-        np.save(f"{path}/n_detections_{i.split('/')[-1]}.npy",n_detections)
-        np.save(f"{path}/n_matched_{i.split('/')[-1]}.npy",n_matched)
+        #np.save(f"{path}/n_detections_{i.split('/')[-1]}.npy",n_detections)
+        #np.save(f"{path}/n_matched_{i.split('/')[-1]}.npy",n_matched)
         detections_1.to_csv(f"{path}/detections_{i.split('/')[-1]}.csv")
 

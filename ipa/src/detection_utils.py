@@ -7,7 +7,7 @@ from functools import partial
 from localization_utils import gauss_single_spot,gauss_single_spot_2d
 
 
-def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.5,threads:int = 10) -> pd.DataFrame:
+def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.5,threads:int = 10,fitting:bool = True) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -34,24 +34,28 @@ def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.
     array = set([tuple(i) for i in array])
     z,y,x = zip(*array)
 
-    k = [(raw_im[frame],y[i],x[i],z[i]) for i in range(len(x))]
-    os.nice(19)
-    with Pool(processes=threads) as p:
-       x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
-    os.nice(0)
-    # x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit,sd1,sd2,sd3 = x,y,z,np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x))
+    if fitting == True:
+        k = [(raw_im[frame],y[i],x[i],z[i]) for i in range(len(x))]
+        #os.nice(19)
+        with Pool(processes=threads) as p:
+            x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
+        #os.nice(0)
+        # x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit,sd1,sd2,sd3 = x,y,z,np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x))
 
-    # create a dataframe with sub pixel localization
-    df_loc = pd.DataFrame([x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit]).T
-    df_loc.rename(columns={0:'x',1:'y',2:'z',3:'sd_fit_x',4:'sd_fit_y',5:'sd_fit_z'},inplace=True)
-    df_loc['frame'] = [frame] * len(df_loc)
+        # create a dataframe with sub pixel localization
+        df_loc = pd.DataFrame([x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit]).T
+        df_loc.rename(columns={0:'x',1:'y',2:'z',3:'sd_fit_x',4:'sd_fit_y',5:'sd_fit_z'},inplace=True)
+        df_loc['frame'] = [frame] * len(df_loc)
 
-    # filter the dataframe based on the gaussian fit
+        # filter the dataframe based on the gaussian fit
 
-    df_loc_filtered = df_loc.query(f'sd_fit_x <{thresh} and sd_fit_y <{thresh} and sd_fit_z < {thresh}') #remove the bad fit 
-    df_loc_filtered = df_loc_filtered[df_loc_filtered.sd_fit_x.values != 0]    #remove the points that were not fitted
+        df_loc_filtered = df_loc.query(f'sd_fit_x <{thresh} and sd_fit_y <{thresh} and sd_fit_z < {thresh}') #remove the bad fit 
+        df_loc_filtered = df_loc_filtered[df_loc_filtered.sd_fit_x.values != 0]    #remove the points that were not fitted
     # df_loc_filtered = df_loc
-
+    else:
+        df_loc_filtered = pd.DataFrame([x,y,z]).T
+        df_loc_filtered.rename(columns={0:'x',1:'y',2:'z'},inplace=True)
+        df_loc_filtered['frame'] = [frame] * len(df_loc_filtered)
 
     return df_loc_filtered
 
@@ -101,4 +105,43 @@ def hmax_detection_fast(raw_im:np.array,frame:int,sd:float,n:int = 2,thresh:floa
     df_loc_filtered = df_loc_filtered[df_loc_filtered.sd_fit_x.values != 0]    #remove the points that were not fitted
     df_loc_filtered
 
+    return df_loc_filtered
+
+def fitting(raw_im: np.ndarray,frame: int,detected_spot: pd.DataFrame,thresh: float = 0.5,threads:int = 10) -> pd.DataFrame:
+    """_summary_
+ 
+    Args:
+        raw_im (np.array): the raw image to segment
+        frame (int): the frame to segment
+        sd (float): the sd of the peak intensity (threshold of segmentation)
+        n (int, optional): how much brighter than the sd of the whole image to threshold
+        thresh (float, optional): threshold for the gaussian fitting filter. Filter on the standard deviation of the fit (based on the covariance of the parameters) Defaults to 0.5.
+ 
+    Returns:
+        pd.DataFrame: Dataframe of sub-pixel localizations of the detected spots
+    """
+    x=detected_spot['x'].values
+    y=detected_spot['y'].values
+    z=detected_spot['z'].values
+    
+    # remove duplicates
+    array = np.array([z,y,x]).T
+    array = set([tuple(i) for i in array])
+    z,y,x = zip(*array)
+ 
+    k = [(raw_im[frame],y[i],x[i],z[i]) for i in range(len(x))]
+    #os.nice(19)
+    with Pool(processes=threads) as p:
+        x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
+    #os.nice(0)
+    
+    # create a dataframe with sub pixel localization
+    df_loc = pd.DataFrame([x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit]).T
+    df_loc.rename(columns={0:'x',1:'y',2:'z',3:'sd_fit_x',4:'sd_fit_y',5:'sd_fit_z'},inplace=True)
+    df_loc['frame'] = [frame] * len(df_loc)
+ 
+    # filter the dataframe based on the gaussian fit
+    df_loc_filtered = df_loc.query(f'sd_fit_x <{thresh} and sd_fit_y <{thresh} and sd_fit_z < {thresh}') #remove the bad fit
+    df_loc_filtered = df_loc_filtered[df_loc_filtered.sd_fit_x.values != 0]    #remove the points that were not fitted
+ 
     return df_loc_filtered
