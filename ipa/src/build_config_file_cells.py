@@ -9,7 +9,6 @@ def main() -> None:
     """
     Create preprocessing_config.yaml from user inputs.
     """
-    cwd = os.getcwd()
 
     print("Please answer the following questions to build the config file. \n Press enter to use the default values.")
 
@@ -20,9 +19,6 @@ def main() -> None:
     save_path = questionary.path("Save path:").ask()
     if save_path == "": save_path = '/tungstenfs/scratch/ggiorget/nessim/2_color_imaging/localization_precision_estimation/runs/'
     
-    n = questionary.text("n factor for h max (n*height):").ask()
-    if n == '': n = 1
-    
     thresh= questionary.text("Threshold for h max:").ask()
     if thresh == '': thresh = 0.5
     
@@ -30,7 +26,7 @@ def main() -> None:
     if threads == '': threads = 5
     
     cutoff = questionary.text("Cutoff for matching:").ask()
-    if cutoff == '': cutoff = 0.2
+    if cutoff == '': cutoff = 0.3
 
 
     confi = os.path.join(save_path,name_of_experiment ,CONFIG_NAME)
@@ -39,7 +35,6 @@ def main() -> None:
         "name_of_run": name_of_experiment,
         "folder_path": folder_path,
         "save_path": os.path.join(save_path,name_of_experiment),
-        "n": int(n),
         "thresh": float(thresh),
         "threads": int(threads),
         "cutoff": float(cutoff)
