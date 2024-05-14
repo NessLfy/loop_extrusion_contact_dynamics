@@ -19,7 +19,7 @@ def main(path:str,name_of_run:str,thresh:float,threads:int,cutoff:float,save_pat
     im = nd2.imread(path)
     met = nd2.ND2File(path)
 
-    try:
+    try:        
         im=im[:,:,1:3,:,:]
         logger.info('Loaded image with shape: {}'.format(im.shape))
         logger.info(f'The pixel size for this image was (x,y,z): {met.voxel_size()}')
@@ -35,14 +35,9 @@ def main(path:str,name_of_run:str,thresh:float,threads:int,cutoff:float,save_pat
             im_max_2 = np.expand_dims(np.max(im_c2[frame],axis=0),axis=0)
             h.append(pre.compute_h_param(im=im_max_1,frame = 0,thresh=0.5))
             h2.append(pre.compute_h_param(im=im_max_2,frame = 0,thresh=0.5))
-
-        # h = np.mean(h)
-        # h2 = np.mean(h2)
-
+        
         logger.info(f'The h parameter for channel 1 is {h} and for channel 2 is {h2}')
 
-        
-        
         detection_combined,detections_1_comb, detections_2_comb ,detections_1_fitted_comb,detections_2_fitted_comb = [],[],[],[],[]
 
         for frame in tqdm(range(np.shape(im_c1)[0])):

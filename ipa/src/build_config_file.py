@@ -32,6 +32,16 @@ def main() -> None:
     cutoff = questionary.text("Cutoff for matching:").ask()
     if cutoff == '': cutoff = 0.2
 
+    method = questionary.text("Method for fitting, available choices gaussian or com :").ask()
+    if method == '': method = "gaussian"
+
+    crop_size_xy = questionary.text("Crop size for fitting in xy directions if more than one value put a ,:").ask()
+    if crop_size_xy == '': crop_size_xy = [5]
+    else: crop_size_xy=list(crop_size_xy.split(","))
+
+    crop_size_z = questionary.text("Crop size for fitting in z directions if more than one value put a ,:").ask()
+    if crop_size_z == '': crop_size_z = [5]
+    else: crop_size_z=list(crop_size_z.split(","))
 
     confi = os.path.join(save_path,name_of_experiment ,CONFIG_NAME)
 
@@ -42,7 +52,10 @@ def main() -> None:
         "n": int(n),
         "thresh": float(thresh),
         "threads": int(threads),
-        "cutoff": float(cutoff)
+        "cutoff": float(cutoff),
+        "method": method,
+        "crop_size_xy": [int(x) for x in crop_size_xy],
+        "crop_size_z": [int(x) for x in crop_size_z]
     }
 
     os.makedirs(save_path+'/'+name_of_experiment, exist_ok=True)

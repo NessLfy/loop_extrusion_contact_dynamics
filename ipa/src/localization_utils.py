@@ -40,9 +40,9 @@ def gauss_single_spot(
     c_coord: float,
     r_coord: float,
     z_coord: float,
-    crop_size= 4 ,
-    crop_size_z= 4,
-):
+    crop_size: int,
+    crop_size_z: int,
+) :
     """Gaussian prediction on a single crop centred on spot."""
 
     start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
@@ -105,6 +105,36 @@ def gauss_single_spot(
         return r_coord, c_coord, z_coord,0,0,0
 
     return x0, y0, z0,sd_x, sd_y, sd_z
+
+def locate_com(
+    image: np.ndarray,
+    c_coord: float,
+    r_coord: float,
+    z_coord: float,
+    crop_size: int,
+    crop_size_z: int,
+):
+    """Gaussian prediction on a single crop centred on spot."""
+
+    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
+    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+
+    crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
+
+    ogrid = np.ogrid[[slice(0, i) for i in crop.shape]]  # for center of mass
+    ogrid = [g.astype(float) for g in ogrid]
+
+    normalizer=np.sum(crop)
+    
+    for dim in range(crop.ndim):
+        crop * ogrid[dim]
+    cm=np.array([(crop * ogrid[dim]).sum() / normalizer for dim in range(crop.ndim)])
+
+    x = cm[1] + start_dim2
+    y = cm[2] + start_dim1
+    z = cm[0] + start_dim3
+    return x,y,z
 
 EPS = 1e-4
 
@@ -259,10 +289,18 @@ def lsradialcenterfit(m, b, w):
     return xc, yc
 
 def get_crop(r_coord,c_coord,crop_size,image):
-
     start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
     start_dim2, end_dim2 = find_start_end(c_coord, image.shape[1], crop_size)
 
     crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
+    
+    return crop, start_dim1, end_dim1, start_dim2, end_dim2
+
+def get_crop_3d(r_coord,c_coord,z_coord,crop_size,crop_size_z,image):
+    start_dim1, end_dim1 = find_start_end(r_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(c_coord, image.shape[2], crop_size)
+    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+
+    crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
     
     return crop, start_dim1, end_dim1, start_dim2, end_dim2
