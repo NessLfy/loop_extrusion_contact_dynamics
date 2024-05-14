@@ -4,10 +4,10 @@ from multiprocessing import Pool
 from skimage.morphology import extrema
 import os
 from functools import partial
-from localization_utils import gauss_single_spot,gauss_single_spot_2d
+from localization_utils import gauss_single_spot,gauss_single_spot_2d,locate_com 
 
 
-def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.5,threads:int = 10,fitting:bool = True) -> pd.DataFrame:
+def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.5,threads:int = 10,crop_size_xy:int = 4,crop_size_z:int = 4,fitting:bool = True,method:str = "gaussian") -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -33,31 +33,36 @@ def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.
     array = np.array([z,y,x]).T
     array = set([tuple(i) for i in array])
     z,y,x = zip(*array)
-
+    pos=np.vstack((z,y,x)).T
+    margin=np.array((crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
+    shape=raw_im[frame].shape
+    near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
+    pos = pos[~near_edge]
+    z,y,x = pos.T
+    
     if fitting == True:
-        k = [(raw_im[frame],y[i],x[i],z[i]) for i in range(len(x))]
-        #os.nice(19)
-        with Pool(processes=threads) as p:
-            x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
-        #os.nice(0)
-        # x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit,sd1,sd2,sd3 = x,y,z,np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x)),np.zeros(len(x))
+        k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+        if(method.lower()=="gaussian"):
+            with Pool(processes=threads) as p:
+                x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
+        elif(method.lower()=="com"):
+            with Pool(processes=threads) as p:
+                x_s,y_s,z_s= zip(*(p.starmap(locate_com,k)))
+        
+        else:
+            raise Exception("Invalid method")
+        
+        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
+        df_loc.rename(columns={0:'x',1:'y',2:'z',3:'x_fitted',4:'y_fitted',5:'z_fitted'},inplace=True)
+        df_loc['frame'] = frame
+        df_loc['method'] = method
 
-        # create a dataframe with sub pixel localization
-        df_loc = pd.DataFrame([x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit]).T
-        df_loc.rename(columns={0:'x',1:'y',2:'z',3:'sd_fit_x',4:'sd_fit_y',5:'sd_fit_z'},inplace=True)
+    else:
+        df_loc = pd.DataFrame([x,y,z]).T
+        df_loc.rename(columns={0:'x',1:'y',2:'z'},inplace=True)
         df_loc['frame'] = [frame] * len(df_loc)
 
-        # filter the dataframe based on the gaussian fit
-
-        df_loc_filtered = df_loc.query(f'sd_fit_x <{thresh} and sd_fit_y <{thresh} and sd_fit_z < {thresh}') #remove the bad fit 
-        df_loc_filtered = df_loc_filtered[df_loc_filtered.sd_fit_x.values != 0]    #remove the points that were not fitted
-    # df_loc_filtered = df_loc
-    else:
-        df_loc_filtered = pd.DataFrame([x,y,z]).T
-        df_loc_filtered.rename(columns={0:'x',1:'y',2:'z'},inplace=True)
-        df_loc_filtered['frame'] = [frame] * len(df_loc_filtered)
-
-    return df_loc_filtered
+    return df_loc
 
 def hmax_detection_fast(raw_im:np.array,frame:int,sd:float,n:int = 2,thresh:float = 0.5,threads:int=5) -> pd.DataFrame:
     """_summary_
