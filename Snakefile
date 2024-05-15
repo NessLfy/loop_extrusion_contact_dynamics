@@ -15,26 +15,23 @@ import glob
 threads = config["threads"]
 FILENAME = [x.split('/')[-1].split('.')[0] for x in glob.glob(f"{config['folder_path']}/*.nd2")]
 
-images = expand("{folder_path}{filename}.nd2", folder_path=config['folder_path'], filename="{filename}")
+images = expand("{folder_path}/{filename}.nd2", folder_path=config['folder_path'], filename="{filename}")
 
 formatted_image = config["save_path"]+"/formatted_image_{filename}.npy"
 
 detection = "{path}/detections_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
 
-detections_matched = expand("{path}/detections_merged_matched_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv", filename=FILENAME,
+detections_matched = expand("{path}/detections_matched_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv", filename=FILENAME,
          method=config["method"],
          crop_sizexy=config["crop_size_xy"],
          crop_size_z= config['crop_size_z'],
          path=config["save_path"])
 
-detection_matched = "{path}/detections_merged_matched_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
+detection_matched = "{path}/detections_matched_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
 
 h_param = "{path}/h_params_{filename}.npy"
 
 met = "{path}/metadata_{filename}_method_{method}_cxy_{crop_sizexy}_cz_{crop_size_z}.txt"
-
-# lo = 'loggerfile_{filename}.logger'
-
 
 rule all:
     input:
