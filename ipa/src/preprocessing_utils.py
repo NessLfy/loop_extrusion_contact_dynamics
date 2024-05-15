@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from skimage.feature import blob_log
-from localization_utils import gauss_single_spot,gauss_single_spot_2d
+from .localization_utils import gauss_single_spot,gauss_single_spot_2d
 from skimage.morphology import disk
 import matplotlib.pyplot as plt
 import logging
