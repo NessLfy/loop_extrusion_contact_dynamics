@@ -40,11 +40,15 @@ def hmax_3D(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,thresh: float = 0.
     pos = pos[~near_edge]
     z,y,x = pos.T
     
+    if len(x) == 0 or len(y) == 0 or len(z) == 0:
+        print("No spots detected")
+        return pd.DataFrame(columns=['x','y','z','x_fitted','y_fitted','z_fitted','frame','method'])
+    
     if fitting == True:
         k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
         if(method.lower()=="gaussian"):
             with Pool(processes=threads) as p:
-                x_s,y_s,z_s,sdx_fit,sdy_fit,sdz_fit = zip(*(p.starmap(gauss_single_spot,k)))
+                x_s,y_s,z_s,*_ = zip(*(p.starmap(gauss_single_spot,k)))
         elif(method.lower()=="com"):
             with Pool(processes=threads) as p:
                 x_s,y_s,z_s= zip(*(p.starmap(locate_com,k)))
