@@ -8,6 +8,7 @@ import glob
 from datetime import datetime
 import os
 from ipa.src.snakemake_utils import create_logger_format,create_logger_workflow
+from trackpy.feature import filter_image
 
 # Define names of the input and output files
 threads = config["threads"]
@@ -30,6 +31,8 @@ detection_matched = "{path}/detections_matched_{filename}_method_{method}_cxy_{c
 h_param = "{path}/h_params_{filename}.npy"
 
 metadata = config['save_path']+"/{filename}_metadata.npy"
+
+smoothing = config['smoothing']
 
 #create_l = 
 
@@ -74,6 +77,7 @@ rule compute_h_param:
     run:
         h = np.zeros((2,1))
         im_big = np.load(input[0])
+        
         logger.info(f"Loaded image {input[0]} for h param computation")
         logger.info(f"The image has a shape of {im_big.shape}")
 
@@ -82,6 +86,10 @@ rule compute_h_param:
 
         for dim in range(np.shape(im_big)[1]):
             im = im_big[:,dim,...]
+            if smoothing == True:
+                im = filter_image(im,diameter = int(config['crop_size_xy'][0]))
+            else:
+                im = im
             h[dim] = ipa.src.preprocessing_utils.compute_h_param(np.expand_dims(np.max(im,axis=0),axis=0),frame=0,thresh=0.2)
         
         logger.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
@@ -96,6 +104,7 @@ rule compute_detections:
     output:
         detection
     params:
+        smoothing = smoothing,
         n = config["n"],
         thresh = config["thresh"],
         log_filename = lambda wildcards: f"{wildcards.filename}_method_{wildcards.method}_cxy_{wildcards.crop_sizexy}_cz_{wildcards.crop_size_z}",

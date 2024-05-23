@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 
 
+
+
 def _create_logger(path:str,name: str) -> logging.Logger:
     """
     Create logger which logs to <timestamp>-<name>.log inside the current
@@ -36,4 +38,3 @@ def create_logger_format(p,wildcards):
     
 def create_logger_workflow(wildcards):
     return _create_logger(f"{wildcards.path}",f"{wildcards.filename}_method_{wildcards.method}_cxy_{wildcards.crop_sizexy}_cz_{wildcards.crop_size_z}")
-    
