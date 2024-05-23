@@ -108,32 +108,32 @@ def gauss_single_spot(
 
 def locate_com(
     image: np.ndarray,
-    c_coord: float,
-    r_coord: float,
+    y_coord: float,
+    x_coord: float,
     z_coord: float,
     crop_size: int,
     crop_size_z: int,
 ):
     """Gaussian prediction on a single crop centred on spot."""
-
-    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
-    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
+ 
+    start_dim1, end_dim1 = find_start_end(y_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(x_coord, image.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
-
+ 
     crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
-
     ogrid = np.ogrid[[slice(0, i) for i in crop.shape]]  # for center of mass
     ogrid = [g.astype(float) for g in ogrid]
-
+ 
     normalizer=np.sum(crop)
     
     for dim in range(crop.ndim):
         crop * ogrid[dim]
     cm=np.array([(crop * ogrid[dim]).sum() / normalizer for dim in range(crop.ndim)])
-
-    x = cm[1] + start_dim2
-    y = cm[2] + start_dim1
+    
+    x = cm[2] + start_dim2
+    y = cm[1] + start_dim1
     z = cm[0] + start_dim3
+ 
     return x,y,z
 
 EPS = 1e-4
