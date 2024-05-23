@@ -55,7 +55,7 @@ rule format_images:
         params.lo.info(f"The image has a shape of {im.shape}")
 
         if("Illumination_Sequence" in input[0]):
-           im=im[1:,...]
+           im=im#[1:,...]
         else:
             im=im[:,1:3,:,:]
         
@@ -81,7 +81,7 @@ rule compute_h_param:
         params.lo.info(f"The image has a shape of {im_big.shape}")
 
         for dim in range(np.shape(im_big)[1]):
-            im = im_big[:,dim,:,:]
+            im = im_big[:,dim,...]
             h[dim] = ipa.src.preprocessing_utils.compute_h_param(np.expand_dims(np.max(im,axis=0),axis=0),frame=0,thresh=0.2)
         
         logger.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
