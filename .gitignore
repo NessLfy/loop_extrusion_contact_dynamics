@@ -216,3 +216,5 @@ infrastructure/apps/**/
 runs/*
 
 .snakemake/*
+
+models/*
