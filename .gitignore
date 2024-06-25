@@ -218,3 +218,5 @@ runs/*
 .snakemake/*
 
 models/*
+
+scratchpad/test*
