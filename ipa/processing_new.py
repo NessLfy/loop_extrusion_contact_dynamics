@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
-from skimage.morphology import ball, dilation
-import ipa.src.snakemake_utils as snk
-import nd2
+from multiprocessing import Pool,Lock
+from skimage.morphology import ball
+import dask.array as da
 from skimage.morphology import disk,white_tophat
 from trackpy.preprocessing import lowpass
 from itertools import starmap
@@ -15,7 +14,11 @@ import argparse
 import tqdm
 import os
 from scipy.ndimage import maximum_filter
-import dask
+import dask.array as da
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import cProfile
+import nd2
+
 
 # function to filter the image
 
@@ -95,7 +98,6 @@ def max5_detection(raw_im: np.ndarray,frame: int,channel:int,max_filter_image:np
 
 
     if len(x) == 0 or len(y) == 0 or len(z) == 0:
-        print(np.array(max_coords_2).T)
         print("No spots detected")
         return pd.DataFrame(columns=['x','y','z','x_fitted','y_fitted','z_fitted','frame','channel','intensity','pixel_sum','label','snr_tophat','snr_dilated'])
 
@@ -133,25 +135,55 @@ def max5_detection(raw_im: np.ndarray,frame: int,channel:int,max_filter_image:np
 
     return df_loc
 
-
 # function to load and save the data
 
-def processing(input_path,output_file_path,frame,channel,labels,crop_xy,crop_z):
-    if os.path.exists(output_file_path):
-        return None
-    else:
-        im = nd2.imread(input_path,dask=True)
-        im = im[frame,:,channel,...].compute()
-        im_filtered = format(im)
-        max_filter_image = max_filter(im_filtered)
+def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z):
+    with lock:
+        # Check if the output file already exists
+        if os.path.exists(output_file_path):
+            return None
+    # Proceed with processing outside the lock to allow parallel computation
+    im = nd2.imread(input_path, dask=True)
+    labels = da.from_zarr(labels, component='0/')
 
-        spot_df = max5_detection(raw_im= im_filtered,frame= frame,channel=channel,max_filter_image=max_filter_image,labels=labels,crop_size_xy= crop_xy,crop_size_z= crop_z)
+    im = im[frame,:,channel,...].compute()
+    labels = labels[frame,...].compute()
 
-        spot_df.to_csv(output_file_path,index=False)
+    im_filtered = format(im)  # Assuming format is a predefined function
+    max_filter_image = max_filter(im_filtered)  # Assuming max_filter is a predefined function
 
-# function to perform the detections
+    # Assuming max5_detection is a predefined function that returns a DataFrame
+    spot_df = max5_detection(raw_im=im_filtered, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z)
+
+    # Use the lock again for writing the file to ensure thread-safe I/O
+    with lock:
+        spot_df.to_csv(output_file_path, index=False)
+
+def init_process(shared_lock):
+    global lock
+    lock = shared_lock
+
+def processing_chunk(chunk):
+    results = []
+    for args in chunk:
+        # Unpack the arguments
+        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z = args
+        # Process each item in the chunk
+        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z)
+        results.append(result)
+    return results
+
+def chunkify(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def read_and_concatenate_csv(files):
+    df_temp = pd.read_csv(files)
+    return df_temp
 
 def main():
+    lock = Lock()
     # Create the parser
     parser = argparse.ArgumentParser(description='Run detections')
 
@@ -169,34 +201,40 @@ def main():
     args = parser.parse_args()
 
     input_path = args.input_image
-    im = nd2.imread(input_path,dask=True)
     # dask.config.set(scheduler='threads', num_workers=1)
 
-    output_path = (args.output_file).strip('.csv') 
     threads = args.threads
-    labels = np.load(args.labels)
-    n_frames = np.shape(im)[0]
+    
+    # im = da.from_zarr(input_path, component='0/')
 
-    k = [(input_path,f"{output_path}_{frame}_{channel}.csv",frame,channel,labels[frame,...],args.crop_size_xy,args.crop_size_z) for frame in range(n_frames) for channel in range(2)]
+    output_path = (args.output_file).strip('.csv') 
+    
+    labels = args.labels
 
-    with Pool(threads) as p:
-        p.starmap(processing,tqdm.tqdm(k,total=len(k)))
+    n_frames = int(args.n_frames)#np.shape(im)[0]
 
-    df_final = []
-    for files in tqdm.tqdm(os.listdir('/'.join(output_path.split('/')[:-1]))):
-        if files.endswith('.csv'):
-            if output_path.split('/')[-1] in files:
-                try:
-                    df_temp = pd.read_csv('/'.join(output_path.split('/')[:-1])+'/'+files)
-                    df_final.append(df_temp)
-                    os.remove('/'.join(output_path.split('/')[:-1])+'/'+files)
-                except UnicodeDecodeError:
-                    print(f'Error reading {files}')
-                    continue
+    tasks = [
+    (input_path,f"{output_path}_{frame}_{channel}.csv", frame, channel, labels, args.crop_size_xy, args.crop_size_z)
+    for frame in range(n_frames) for channel in range(2)]
 
-    df_final = pd.concat(df_final)
+    chunk_size =max(1, len(tasks) // (threads * 3))
 
-    df_final.to_parquet(output_path+'.csv',index=False)
+    with Pool(initializer=init_process, initargs=(lock,),processes=threads) as pool:
+        task_chunks = list(chunkify(tasks, chunk_size))
+        _ = list(tqdm.tqdm(pool.imap(processing_chunk, task_chunks), total=len(task_chunks)))
+
+    # Parallel file processing
+    files_to_process = [os.path.join('/'.join(output_path.split('/')[:-1]), f) for f in os.listdir('/'.join(output_path.split('/')[:-1])) if f.endswith('.csv') and output_path.split('/')[-1] in f]
+    with ProcessPoolExecutor(max_workers=threads) as executor:
+        df_futures = [executor.submit(read_and_concatenate_csv, file) for file in files_to_process]
+    
+    df_final = pd.concat([future.result() for future in tqdm.tqdm(as_completed(df_futures), total=len(df_futures))])
+    
+    # Clean up files
+    for file in files_to_process:
+        os.remove(file)
+    
+    df_final.to_parquet(output_path+'.csv', index=False)
 
 if __name__ == '__main__':
     main()

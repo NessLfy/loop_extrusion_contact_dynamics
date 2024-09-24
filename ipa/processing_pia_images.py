@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
+from multiprocessing import Pool,Manager,Lock
 from skimage.morphology import ball, dilation
 import ipa.src.snakemake_utils as snk
 import tifffile
@@ -16,11 +16,15 @@ import argparse
 import tqdm
 import os
 from scipy.ndimage import maximum_filter
-import dask.config
+import dask.array as da
 import cProfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import concurrent
 from joblib import Parallel, delayed
+import multiprocessing
+import itertools
+from functools import partial
+
 
 
 
@@ -143,18 +147,54 @@ def max5_detection(raw_im: np.ndarray,frame: int,channel:int,max_filter_image:np
 
 # function to load and save the data
 
-def processing(im,output_file_path,frame,channel,labels,crop_xy,crop_z):
-    if os.path.exists(output_file_path):
-        return None
-    else:
-        im_filtered = format(im)
-        max_filter_image = max_filter(im_filtered)
+def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z):
+    with lock:
+        # Check if the output file already exists
+        if os.path.exists(output_file_path):
+            return None
+    # Proceed with processing outside the lock to allow parallel computation
+    im = da.from_zarr(input_path, component='0/')
+    labels = da.from_zarr(labels, component='0/')
 
-        spot_df = max5_detection(raw_im= im_filtered,frame= frame,channel=channel,max_filter_image=max_filter_image,labels=labels,crop_size_xy= crop_xy,crop_size_z= crop_z)
+    im = im[frame,:,channel,...].compute()
+    labels = labels[frame,...].compute()
 
-        spot_df.to_csv(output_file_path,index=False)
+    im_filtered = format(im)  # Assuming format is a predefined function
+    max_filter_image = max_filter(im_filtered)  # Assuming max_filter is a predefined function
+
+    # Assuming max5_detection is a predefined function that returns a DataFrame
+    spot_df = max5_detection(raw_im=im_filtered, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z)
+
+    # Use the lock again for writing the file to ensure thread-safe I/O
+    with lock:
+        spot_df.to_csv(output_file_path, index=False)
+
+
+def init_process(shared_lock):
+    global lock
+    lock = shared_lock
+
+def processing_chunk(chunk):
+    results = []
+    for args in chunk:
+        # Unpack the arguments
+        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z = args
+        # Process each item in the chunk
+        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z)
+        results.append(result)
+    return results
+
+def chunkify(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def read_and_concatenate_csv(files):
+    df_temp = pd.read_csv(files)
+    return df_temp
 
 def main():
+    lock = Lock()
     # Create the parser
     parser = argparse.ArgumentParser(description='Run detections')
 
@@ -172,25 +212,31 @@ def main():
     args = parser.parse_args()
 
     input_path = args.input_image
-    dask.config.set(scheduler='threads', num_workers=1)
+    # dask.config.set(scheduler='threads', num_workers=1)
 
     threads = args.threads
     
-    im = da.from_zarr(input_path, component='0/')
+    # im = da.from_zarr(input_path, component='0/')
 
     output_path = (args.output_file).strip('.csv') 
     
-    labels = np.load(args.labels)
-    n_frames = np.shape(im)[0]
+    labels = args.labels
+
+    n_frames = 480#np.shape(im)[0]
 
     tasks = [
-    (im[frame,:,channel,...], f"{output_path}_{frame}_{channel}.csv", frame, channel, labels[frame, ...], args.crop_size_xy, args.crop_size_z)
+    (input_path,f"{output_path}_{frame}_{channel}.csv", frame, channel, labels, args.crop_size_xy, args.crop_size_z)
     for frame in range(n_frames) for channel in range(2)]
 
-    Parallel(n_jobs=threads, prefer="processes", verbose=6)(
-    delayed(processing)(*task) for task in tqdm.tqdm(tasks, desc="Processing images")
-    )
-    
+    chunk_size = threads #max(1, len(tasks) // (threads * 2))
+
+    # with Pool(threads) as p:
+    #     p.starmap(processing,tqdm.tqdm(tasks,total=len(tasks)))
+
+    # Parallel(n_jobs=threads, prefer="processes", verbose=6)(
+    # delayed(processing)(*task) for task in tqdm.tqdm(tasks, desc="Processing images")
+    # )
+
     # futures = []
     # with ProcessPoolExecutor(max_workers=threads) as executor:
     #     for task in tasks:
@@ -200,21 +246,61 @@ def main():
 
     #     _ = [future.result() for future in tqdm.tqdm(as_completed(futures), total=len(futures))]
 
-    df_final = []
-    for files in tqdm.tqdm(os.listdir('/'.join(output_path.split('/')[:-1]))):
-        if files.endswith('.csv'):
-            if output_path.split('/')[-1] in files:
-                try:
-                    df_temp = pd.read_csv('/'.join(output_path.split('/')[:-1])+'/'+files)
-                    df_final.append(df_temp)
-                    os.remove('/'.join(output_path.split('/')[:-1])+'/'+files)
-                except UnicodeDecodeError:
-                    print(f'Error reading {files}')
-                    continue
+    # df_final = []
+    # for files in tqdm.tqdm(os.listdir('/'.join(output_path.split('/')[:-1]))):
+    #     if files.endswith('.csv'):
+    #         if output_path.split('/')[-1] in files:
+    #             try:
+    #                 df_temp = pd.read_csv('/'.join(output_path.split('/')[:-1])+'/'+files)
+    #                 df_final.append(df_temp)
+    #                 os.remove('/'.join(output_path.split('/')[:-1])+'/'+files)
+    #             except UnicodeDecodeError:
+    #                 print(f'Error reading {files}')
+    #                 continue
 
-    df_final = pd.concat(df_final)
+    # df_final = pd.concat(df_final)
 
-    df_final.to_parquet(output_path+'.csv',index=False)
+    # df_final.to_parquet(output_path+'.csv',index=False)
+        # Batch tasks
+    # batch_size = threads  # Adjust based on your workload
+    # task_batches = [tasks[i:i + batch_size] for i in range(0, len(tasks), batch_size)]
+    
+    # futures = []
+    # with ProcessPoolExecutor(max_workers=threads) as executor:
+    #     for batch in task_batches:
+    #         future = executor.submit(process_batch, batch)
+    #         futures.append(future)
+    
+    # _ = [future.result() for future in tqdm.tqdm(as_completed(futures), total=len(futures))]
+    
+    # with ProcessPoolExecutor(max_workers=threads) as executor:
+    #     # executor.map handles the tasks' iteration and submission for you
+    #     # If the order of results is not important, consider setting chunksize to optimize performance
+    #     results = list(tqdm.tqdm(executor.map(processing, *zip(*tasks)), total=len(tasks)))
+
+    # with Manager() as manager:
+    #     lock = manager.Lock()  # Create a Lock via the Manager
+
+     
+    #     with Pool(threads) as p:
+    #          results = list(tqdm.tqdm(p.starmap(processing, [(task + (lock,)) for task in tasks]), total=len(tasks)))
+
+    with Pool(initializer=init_process, initargs=(lock,),processes=threads) as pool:
+        task_chunks = list(chunkify(tasks, chunk_size))
+        results = list(tqdm.tqdm(pool.imap(processing_chunk, task_chunks), total=len(tasks)))
+
+    # Parallel file processing
+    files_to_process = [os.path.join('/'.join(output_path.split('/')[:-1]), f) for f in os.listdir('/'.join(output_path.split('/')[:-1])) if f.endswith('.csv') and output_path.split('/')[-1] in f]
+    with ProcessPoolExecutor(max_workers=threads) as executor:
+        df_futures = [executor.submit(read_and_concatenate_csv, file) for file in files_to_process]
+    
+    df_final = pd.concat([future.result() for future in tqdm.tqdm(as_completed(df_futures), total=len(df_futures))])
+    
+    # Clean up files
+    for file in files_to_process:
+        os.remove(file)
+    
+    df_final.to_parquet(output_path+'.csv', index=False)
 
 if __name__ == '__main__':
-    cProfile.run('main()', '/tungstenfs/scratch/ggiorget/nessim/2_color_imaging/localization_precision_estimation/runs/20240725_test_speed/profile_output_ThreadPoolExecutor.dat')
+    cProfile.run('main()', '/tungstenfs/scratch/ggiorget/nessim/2_color_imaging/localization_precision_estimation/runs/20240725_test_speed/profile_output_joblib.dat')
