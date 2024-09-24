@@ -6,9 +6,7 @@ import dask.array as da
 from skimage.morphology import disk,white_tophat
 from trackpy.preprocessing import lowpass
 from itertools import starmap
-import sys
-sys.path.append("/tungstenfs/scratch/ggiorget/nessim/2_color_imaging/localization_precision_estimation/ipa/src")
-from localization_utils import locate_com , find_start_end, gauss_single_spot_2d_1d
+from ipa.localization_utils import find_start_end, gauss_single_spot_2d_1d
 import trackpy as tp
 import argparse
 import tqdm
@@ -16,10 +14,7 @@ import os
 from scipy.ndimage import maximum_filter
 import dask.array as da
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import cProfile
 import nd2
-from functools import partial
-import zarr.hierarchy as zarr
 
 
 # function to filter the image
