@@ -224,3 +224,6 @@ scratchpad/test*
 launch_cluster.sh
 scatter.gif
 test.sh
+
+ipa/processing_dev/*
+scratchpad/chromatic_aberration_correction.ipynb
