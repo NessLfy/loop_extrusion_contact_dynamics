@@ -220,3 +220,6 @@ runs/*
 models/*
 
 scratchpad/test*
+launch_cluster.sh
+scatter.gif
+test.sh
