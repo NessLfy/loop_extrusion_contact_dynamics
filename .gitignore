@@ -219,6 +219,7 @@ runs/*
 
 models/*
 
+scratchpad/*
 scratchpad/test*
 launch_cluster.sh
 scatter.gif
