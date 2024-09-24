@@ -11,6 +11,7 @@ def assign_closest_2d(df1,df2,cutoff):
         index = np.argsort(d[i]) # sort the row by distance (closest first)
         sort = d[i][index] # sorted distances
         for j in range(len(sort)): # loop over distances
+            print(sort)
             if sort[j] > cutoff: # if the distance is greater than the cutoff, break the loop
                 break
             else:
@@ -25,21 +26,21 @@ def assign_closest_2d(df1,df2,cutoff):
 def assign_closest(df1,df2,cutoff):
     d = distance_matrix(df1[['x_um','y_um','z_um']].values,df2[['x_um','y_um','z_um']].values)
     matched = []
-
     for i in range(len(d)):
         # loop over the rows of the matrix
         index = np.argsort(d[i]) # sort the row by distance (closest first)
         sort = d[i][index] # sorted distances
-        for j in range(len(sort)): # loop over distances
-            if sort[j] > cutoff: # if the distance is greater than the cutoff, break the loop
-                break
+        # for j in range(len(sort)): # loop over distances
+        j = 0
+        if sort[j] > cutoff: # if the distance is greater than the cutoff, break the loop
+            pass
+        else:
+            d_col = d[:,index[j]] # get the column of the distance matrix (corresponding to the closest spot in the other channel)
+            if np.min(d_col) < sort[j]:# no match
+                pass
             else:
-                d_col = d[:,index[j]] # get the column of the distance matrix (corresponding to the closest spot in the other channel)
-                if np.min(d_col) < sort[j]:# no match
-                    pass
-                else:
-                    distance_vector=df1[['x_um','y_um','z_um']].values[i] - df2[['x_um','y_um','z_um']].values[index[j]]
-                    matched.append((i,index[j],distance_vector[0],distance_vector[1],distance_vector[2]))
+                distance_vector=df1[['x_um','y_um','z_um']].values[i] - df2[['x_um','y_um','z_um']].values[index[j]]
+                matched.append((i,index[j],distance_vector[0],distance_vector[1],distance_vector[2]))
     return matched
 
 def calculate_rototranslation_3D(reference, moving):
@@ -90,3 +91,23 @@ def calculate_rototranslation_3D(reference, moving):
     t = -R @ centroid_A + centroid_B
 
     return R, t
+
+def assign_closest_cells(df1,df2,cutoff):
+    d = distance_matrix(df1[['centroid-0','centroid-1']].values,df2[['centroid-0','centroid-1']].values)
+    matched = []
+    for i in range(len(d)):
+        # loop over the rows of the matrix
+        index = np.argsort(d[i]) # sort the row by distance (closest first)
+        sort = d[i][index] # sorted distances
+        # for j in range(len(sort)): # loop over distances
+        j = 0
+        if sort[j] > cutoff: # if the distance is greater than the cutoff, break the loop
+            matched.append((i+1,0,0,0))
+        else:
+            d_col = d[:,index[j]] # get the column of the distance matrix (corresponding to the closest spot in the other channel)
+            if np.min(d_col) < sort[j]:# no match
+                matched.append((i+1,0,0,0))
+            else:
+                distance_vector=df1[['centroid-0','centroid-1']].values[i] - df2[['centroid-0','centroid-1']].values[index[j]]
+                matched.append((i+1,index[j]+1,distance_vector[0],distance_vector[1]))
+    return matched

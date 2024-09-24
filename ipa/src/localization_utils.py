@@ -304,3 +304,129 @@ def get_crop_3d(r_coord,c_coord,z_coord,crop_size,crop_size_z,image):
     crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
     
     return crop, start_dim1, end_dim1, start_dim2, end_dim2
+
+
+def gauss_1d(x:float, amplitude, x0, sigma, offset):
+    """1D gaussian."""
+    x=x
+    x0 = float(x0)
+    gauss = offset + amplitude * np.exp(-(x - x0) ** (2) / (2 * sigma ** (2)))
+    return gauss
+
+def gauss_2d(xy:tuple, amplitude, x0, y0, sigma_xy, offset):
+    """2D gaussian."""
+    x, y = xy
+    x0 = float(x0)
+    y0 = float(y0)
+    gauss = offset + amplitude * np.exp(
+        -(
+            ((x - x0) ** (2) / (2 * sigma_xy ** (2)))
+            + ((y - y0) ** (2) / (2 * sigma_xy ** (2)))
+        )
+    )
+    return gauss
+
+def gauss_single_spot_1d(signal: np.ndarray, z_coord: float) -> tuple:
+    """Gaussian prediction on a single crop centred on spot."""
+
+    z = np.arange(0, signal.shape[0], 1)
+    initial_guess = [np.max(signal),len(signal)/2,np.std(signal), np.min(signal)]
+    lower = [0, 0, 0, -np.inf]
+    upper = [1.2*np.max(signal),len(signal),np.inf,np.min(signal)]
+    bounds = [lower, upper]
+
+    try:
+        popt, pcov = opt.curve_fit(gauss_1d,z,signal,p0=initial_guess,bounds=bounds)
+        sd = np.sqrt(np.diag(pcov))
+    except RuntimeError:
+        print('Runtime')
+        return z_coord,0,0,0,0
+    except ValueError as e:
+        print('ValueError',e)
+        return z_coord,0,0,0,0
+    
+    amp = popt[0]
+    z0 = popt[1]
+    sigma = popt[2] 
+    offset = popt[3] 
+    
+    return amp,z0,sigma,offset,sd[1]
+
+def gauss_single_spot_2d(crop: np.ndarray, c_coord: float, r_coord: float, crop_size=4,EPS = 1e-4) -> tuple:
+    
+    x = np.arange(0, crop.shape[1], 1)
+    y = np.arange(0, crop.shape[0], 1)
+    xx, yy = np.meshgrid(x, y)
+
+    # Guess intial parameters
+    initial_guess = [np.max(crop), int(crop.shape[0] // 2),int(crop.shape[0] // 2), np.std(crop), np.min(crop)]
+
+    # Parameter search space bounds
+    lower = [0, 0, 0, 0, -np.inf]
+    upper = [1.2*np.max(crop),crop_size,crop_size,np.inf,np.min(crop)]
+    bounds = [lower, upper]
+    
+    try:
+        popt, pcov = opt.curve_fit(gauss_2d,(xx.ravel(), yy.ravel()),crop.ravel(),p0=initial_guess,bounds=bounds)
+        sd = np.sqrt(np.diag(pcov))
+    
+    except RuntimeError:
+        print('Runtime')
+        return r_coord, c_coord, 0,0,0,0,0
+    except ValueError as e:
+        print('ValueError',e)
+        return r_coord, c_coord, 0,0,0,0,0
+    
+    amp = popt[0]
+    x0 = popt[1]
+    y0 = popt[2]
+    sigma=popt[3]
+    offset=popt[4]
+    sdx = sd[1]
+    sdy = sd[2]
+
+    return amp,x0, y0, sigma,offset,sdx,sdy
+
+
+
+def gauss_single_spot_2d_1d(
+    image: np.ndarray,
+    c_coord: float,
+    r_coord: float,
+    z_coord: float,
+    crop_size: int,
+    crop_size_z: int,
+) :
+    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
+    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+
+    crop = image[int(z_coord),start_dim1:end_dim1, start_dim2:end_dim2]
+    
+    signal=image[start_dim3:end_dim3,int(c_coord),int(r_coord)]
+    
+    amp_xy,x,y,sigma_xy,offset_xy,sx,sy=gauss_single_spot_2d(crop, c_coord, r_coord, crop_size)
+    amp_z,z,sigma,offset_z,sz=gauss_single_spot_1d(signal,z_coord)
+    
+    x0 = x + start_dim2
+    y0 = y + start_dim1
+    z0 = z + start_dim3
+    
+    # If predicted spot is out of the border of the image
+    if x0 >= image.shape[1] or y0 >= image.shape[2] or z0 >= image.shape[0]:
+        print(z)
+        # plt.plot(signal)
+        # plt.plot(gauss_1d(np.arange(len(signal)),amp_z,z,sz,offset_z))
+        # plt.show()
+        print('Out of border')
+        return r_coord, c_coord, z_coord,0,0,0
+
+    return x0, y0, z0, sx, sy,sz
+# Radial symmetry
+def get_crop(r_coord,c_coord,crop_size,image):
+    start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
+    start_dim2, end_dim2 = find_start_end(c_coord, image.shape[1], crop_size)
+
+    crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
+    
+    return crop, start_dim1, end_dim1, start_dim2, end_dim2
