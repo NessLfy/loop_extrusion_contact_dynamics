@@ -6,7 +6,6 @@ from skimage.morphology import disk
 import matplotlib.pyplot as plt
 import logging
 from datetime import datetime
-
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
 
     """Function to return localizations from a laptrack detection
@@ -78,6 +77,9 @@ def compute_h_param(im:np.array,frame:int,mins:float = 1.974 ,maxs:float = 3.0 ,
         _,sd,_ = heatmap_detection(im,frame=frame,df=df,name='sd')
 
         # compute the mean sd across the image 
+
+        if len(sd) == 0:
+            return 0
 
         mean_sd = np.mean(sd)
 
