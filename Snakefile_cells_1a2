@@ -5,7 +5,7 @@ import nd2
 import glob
 from datetime import datetime
 import os
-from ipa.src.snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete,predict_stardist
+from ipa.snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete,predict_stardist
 from tqdm import tqdm
 from skimage.measure import regionprops_table
 import dask.array as da
