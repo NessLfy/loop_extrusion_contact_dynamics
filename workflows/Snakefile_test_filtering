@@ -71,52 +71,54 @@ rule format_images:
         logger.info(f"The image has a shape of {im.shape}")
         params.lo.info(f"The image has a shape of {im.shape}")
         footprint=disk(3)
-        im = np.array(im, dtype=float)
+        im = np.array(im).astype(np.float16)
 
         params.lo.info(f"The image was smoothed bandpass and white tophat was applied")
         for frame in tqdm(range(np.shape(im)[0])):
             for dim in range(np.shape(im)[2]):
-                im[frame,:,dim,...] = lowpass(im[frame,:,dim,...])
+                im_float32 = im[frame,:,dim,...].astype(np.float32)
+                im_float32 = lowpass(im_float32)
                 for plane in range(np.shape(im)[1]):
-                        im[frame,plane,dim,...] = white_tophat(im[frame,plane,dim,...], footprint)
-       
+                    im_float32[plane,...] = white_tophat(im_float32[plane,...], footprint)
+                im[frame,:,dim,...] = im_float32.astype(np.float16)
         logger.info(f"Reformatted the image to have a shape of {im.shape}")
         params.lo.info(f"Reformatted the image to have a shape of {im.shape}")
         np.save(output[0], im)
         np.save(output[1],list(met.voxel_size()))
 
-rule compute_h_param:
-    input:
-        formatted_image
-    output:
-        h_param
-    params:
-        lo = lambda wildcards: create_logger_format(config['save_path'], wildcards)
-    run:
+# rule compute_h_param:
+#     input:
+#         formatted_image
+#     output:
+#         h_param
+#     params:
+#         lo = lambda wildcards: create_logger_format(config['save_path'], wildcards)
+#     run:
         
-        im_big = np.load(input[0])
-        sample_size = 50
-        # to fix
-        h = np.zeros((np.shape(im_big)[2],sample_size))
+#         im_big = np.load(input[0])
+#         sample_size = 50
+#         # to fix
+#         h = np.zeros((np.shape(im_big)[2],sample_size))
         
-        logger.info(f"Loaded image {input[0]} for h param computation")
-        logger.info(f"The image has a shape of {im_big.shape}")
+#         logger.info(f"Loaded image {input[0]} for h param computation")
+#         logger.info(f"The image has a shape of {im_big.shape}")
 
-        params.lo.info(f"Loaded image {input[0]} for h param computation")
-        params.lo.info(f"The image has a shape of {im_big.shape}")
+#         params.lo.info(f"Loaded image {input[0]} for h param computation")
+#         params.lo.info(f"The image has a shape of {im_big.shape}")
 
-        for l,frame in tqdm(enumerate(np.random.randint(0,im_big.shape[0]-1,size=sample_size))):
-            for dim in range(np.shape(im_big)[2]):
-                im = im_big[frame,:,dim,...]
-                h[dim,l] = np.percentile(np.max(im,axis=0).flatten(),64)#ipa.src.preprocessing_utils.compute_h_param(np.expand_dims(np.max(im,axis=0),axis=0),frame=0,thresh=0.2)
+#         for l,frame in tqdm(enumerate(np.random.randint(0,im_big.shape[0]-1,size=sample_size))):
+#             for dim in range(np.shape(im_big)[2]):
+#                 im = im_big[frame,:,dim,...]
+#                 h[dim,l] = np.mean(im) + np.std(im)
+#                 #h[dim,l] = np.percentile(np.max(im,axis=0).flatten(),50)#ipa.src.preprocessing_utils.compute_h_param(np.expand_dims(np.max(im,axis=0),axis=0),frame=0,thresh=0.2)
         
-        #average across the frames
-        h = np.mean(h,axis=1)
+#         #average across the frames
+#         h = np.mean(h,axis=1)
 
-        logger.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
-        params.lo.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
+#         logger.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
+#         params.lo.info(f"Computed h param, the h param for channel 1 is {h[0]} and for channel 2 is {h[1]}")
 
-        np.save(output[0],h)
+#         np.save(output[0],h)
 
 rule compute_labels:
     input: images
@@ -141,49 +143,50 @@ rule compute_labels:
         np.save(output[0],labels)
 
 
-rule compute_n_param:
-    input: formatted_image,h_param,labels
-    output: n_s
-    params:
-        lo = lambda wildcards: create_logger_format(config['save_path'], wildcards),
-        crop_size_xy = config["crop_size_xy"],
-        crop_size_z = config["crop_size_z"]
+# rule compute_n_param:
+#     input: formatted_image,h_param,labels
+#     output: n_s
+#     params:
+#         lo = lambda wildcards: create_logger_format(config['save_path'], wildcards),
+#         crop_size_xy = config["crop_size_xy"],
+#         crop_size_z = config["crop_size_z"]
         
-    run: 
-        im_big = np.load(input[0])
-        h_ = np.load(input[1])
-        labels = np.load(input[2])
-        n_labels = len(np.unique(labels[labels>0]))
-        params.lo.info(f"Loaded image {input[0]} for n param computation")
-        params.lo.info(f"There are {n_labels} labels in the image")
+#     run: 
+#         im_big = np.load(input[0])
+#         h_ = np.load(input[1])
+#         labels = np.load(input[2])
+#         n_labels = len(np.unique(labels[labels>0]))
+#         params.lo.info(f"Loaded image {input[0]} for n param computation")
+#         params.lo.info(f"There are {n_labels} labels in the image")
 
-        n_final = np.zeros((np.shape(im_big)[2],1))
+#         n_final = np.zeros((np.shape(im_big)[2],1))
 
-        if n_labels < 5 or n_labels > 50:
-            params.lo.info(f"Number of labels is {n_labels} which is either too high ot too low, the paramter will be set to 50")
-            n_labels = 50
+#         if n_labels < 5 or n_labels > 100:
+#             params.lo.info(f"Number of labels is {n_labels} which is either too high ot too low, the paramter will be set to 50")
+#             n_labels = 50
 
-        im_big = np.max(im_big,axis=0)
-        for dim in range(np.shape(im_big)[1]):
-            h = h_[dim]
-            im = im_big[:,dim,...]
-            for n in np.arange(1,10,0.5):
-                n_detections= len(det.hmax_3D_dask(im,frame=0,channel=0,sd=h,n=n,crop_size_xy= params.crop_size_xy,crop_size_z= params.crop_size_z))
-                if n_detections < n_labels:
-                    n_final_1 = n
-                    break
-                elif n == 9.5:
-                    n_final_1 = 9.5
-            n_final[dim] = n_final_1
-            params.lo.info(f"Computed n param, the n param for channel {dim} is {n_final_1} and the number of detections is {n_detections}")
+#         im_big = np.max(im_big,axis=0)
+#         for dim in range(np.shape(im_big)[1]):
+#             h = h_[dim]
+#             im = im_big[:,dim,...]
+#             for n in np.arange(1,10,0.5):
+#                 n_detections= len(det.hmax_3D_dask(im,frame=0,channel=0,sd=h,n=n,crop_size_xy= params.crop_size_xy,crop_size_z= params.crop_size_z))
+#                 if n_detections < n_labels:
+#                     n_final_1 = n
+#                     break
+#                 elif n == 9.5:
+#                     n_final_1 = 9.5
+#             n_final[dim] = n_final_1
+#             params.lo.info(f"Computed n param, the n param for channel {dim} is {n_final_1} and the number of detections is {n_detections}")
 
-        np.save(output[0],n_final)
+#         np.save(output[0],n_final)
 
 rule compute_detections:
     input:
         formatted_image,
-        h_param,
-        n_s
+        labels
+        # h_param,
+        # n_s
     output:
         detection
     params:
@@ -194,9 +197,14 @@ rule compute_detections:
     threads: threads
     shell:
         """
-        python -m ipa.src.run_detections_snakemake_dask_args --input_image {input[0]} --h_file {input[1]} --n_file {input[2]} --output_file {output} --log_filename {params.log_filename} --log_path {params.log_path} --crop_sizexy {params.crop_size_xy} --crop_sizez {params.crop_size_z} --threads {threads}
+        python -m ipa.src.run_detections_snakemake_dask_args --input_image {input[0]} --n_labels {input[1]} --output_file {output} --log_filename {params.log_filename} --log_path {params.log_path} --crop_sizexy {params.crop_size_xy} --crop_sizez {params.crop_size_z} --threads {threads}
 
         """
+
+# """
+# python -m ipa.src.run_detections_snakemake_dask_args --input_image {input[0]} --h_file {input[1]} --n_file {input[2]} --output_file {output} --log_filename {params.log_filename} --log_path {params.log_path} --crop_sizexy {params.crop_size_xy} --crop_sizez {params.crop_size_z} --threads {threads}
+
+# """
 
 # rule compute_tracks:
 #     input: detection,metadata

@@ -1,0 +1,102 @@
+import numpy as np
+import pandas as pd
+import ipa.src.preprocessing_utils
+import ipa.src.correction_utils
+import logging
+import tifffile
+import glob
+from datetime import datetime
+import os
+from ipa.src.snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete,predict_stardist
+from tqdm import tqdm
+from skimage.measure import regionprops_table
+
+
+# Define names of the input and output files
+threads = int(config["threads"])
+
+FILENAME = [x.split('/')[-1].replace('.zarr','') for x in glob.glob(f"{config['folder_path']}/*.zarr")]
+images = expand("{folder_path}/{filename}.zarr", folder_path=config['folder_path'], filename="{filename}")
+
+detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
+
+detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv", filename=FILENAME,
+         crop_sizexy=config["crop_size_xy"],
+         crop_size_z=config["crop_size_z"],
+         path=config["save_path"])
+
+
+
+labels = config["save_path"]+"/labels/label_image_{filename}.npy"
+
+labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv", filename=FILENAME)
+
+label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv"
+
+labels_full = config['save_path']+"/labels/label_image_full_{filename}.npy"
+
+max_threads = os.cpu_count() 
+
+rule all:
+    input:
+        detections,
+        labels_tracked
+
+
+rule compute_detections:
+    input:
+        lambda wildcards: f"{config['folder_path']}{wildcards.filename}.zarr",
+        labels_full
+    output:
+        detection
+    params:
+        log_filename = lambda wildcards: f"{wildcards.filename}_cxy_{wildcards.crop_sizexy}_cz_{wildcards.crop_size_z}",
+        log_path = config["save_path"],
+        crop_size_xy = int(config["crop_size_xy"]),
+        crop_size_z = int(config["crop_size_z"])
+    threads: threads
+    shell:
+        """
+        python -m ipa.processing_pia_images --input_image {input[0]} --output_file {output} --labels {input[1]} --log_filename {params.log_filename} --log_path {params.log_path} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --n_frames 480 --threads {threads}
+        """
+
+rule compute_labels_full:
+    input: images
+    output: labels_full
+    params: 
+        lo = lambda wildcards: create_logger_format(config['save_path'], wildcards)
+    priority:
+        19
+    threads:
+	    max_threads
+    run: 
+        im_big = tifffile.imread(input[0])
+        if len(im_big.shape) == 5:
+            im = im_big[:,:,1,...]
+        else:
+            im = im_big[:,1,...]
+        #predict labels
+        params.lo.info(f"Loaded image {input[0]} for labels computation")
+
+        labels = predict_stardist_complete(np.max(im,axis=1))
+
+        np.save(output[0],labels)
+
+
+rule track_cells:
+    input:
+        labels_full
+    output:
+        label_tracked
+    shell:
+        """
+        python -m ipa.src.track_cells --labels_file {input} --output_file {output}
+        """
+
+EMAIL = config['email']
+
+onsuccess:
+   shell("mail -s 'DONE' {EMAIL} < {log}")
+
+onerror:
+   shell("mail -s 'ERROR' {EMAIL}")
