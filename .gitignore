@@ -227,3 +227,4 @@ test.sh
 
 ipa/processing_dev/*
 scratchpad/chromatic_aberration_correction.ipynb
+pyrightconfig.json
