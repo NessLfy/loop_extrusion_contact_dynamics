@@ -265,7 +265,7 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
     
     return track1, track2, dist_corrected
 
-def process_df(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
+def process_df(path_run_folder,cutoff=0.3,proportion_good_track=1.0):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
@@ -291,7 +291,7 @@ def process_df(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
     merged_df = pd.merge(df, df_labels[[ 'frame', 'label', 'new_label']], on=[ 'frame', 'label'], how='left')
 
     df['new_label'] = merged_df['new_label']
-    d = df.groupby(["new_label","channel","frame"]).apply(lambda x: x.loc[x['snr_dilated'].idxmax()])
+    d = df.groupby(["new_label","channel","frame"]).apply(lambda x: x.loc[x['snr_tophat'].idxmax()])
 
     with open(path_beads,'rb') as r:
         model = pickle.load(r)
@@ -302,18 +302,22 @@ def process_df(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
     cells = []
     snr_c1 = []
     snr_c2 = []
+    N_pixel = []
 
     for track in d.new_label.unique():
         temp_traj_1 = np.zeros((N_frame+1, 3))
         temp_traj_2 = np.zeros((N_frame+1, 3))
         snr_c1_temp = np.zeros((N_frame+1,1))
         snr_c2_temp = np.zeros((N_frame+1,1))
+        N_pixel_temp = np.zeros((N_frame+1,1))
         
         temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values
-        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat']].values
+        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_original']].values
 
         temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values
-        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat']].values
+        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_original']].values
+
+        N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
         if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
             track1, track2,dist = correct_track(temp_traj_1,temp_traj_2,model,df,track,cutoff)
@@ -323,5 +327,6 @@ def process_df(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
             cells.append(track)
             snr_c1.append(snr_c1_temp)
             snr_c2.append(snr_c2_temp)
-    
-    return trajs_1, trajs_2,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') ,distances,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2
+            N_pixel.append(N_pixel_temp)
+
+    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') 
