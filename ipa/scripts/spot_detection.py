@@ -6,7 +6,7 @@ import dask.array as da
 from skimage.morphology import disk,white_tophat
 from trackpy.preprocessing import lowpass
 from itertools import starmap
-from ipa.localization_utils import find_start_end, gauss_single_spot_2d_1d
+from localization_utils import find_start_end, gauss_single_spot_2d_1d
 import trackpy as tp
 import argparse
 import tqdm
