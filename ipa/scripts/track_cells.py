@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from skimage.measure import regionprops_table
-import ipa.correction_utils as cor
+import correction_utils as cor
 import dask.array as da
 
 import argparse
