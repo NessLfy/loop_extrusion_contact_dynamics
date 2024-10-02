@@ -191,10 +191,14 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
         df_loc["z_fitted_refined"] = z_s
 
     elif method == 'gauss':
-        k = [(filtered_image,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
-        x_s,y_s,z_s,sx,sy,sz= zip(*(starmap(gauss_single_spot_2d_1d,k)))
-        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s,sx,sy,sz]).T
-        df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"sigma_x","sigma_y","sigma_z"]
+        k = [(filtered_image,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
+        x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_1d,k)))
+        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back ,max_spot_tophat,mean_back_tophat,std_back_tophat]).T
+        df_loc.columns=['x','y','z',
+                        'x_fitted_refined','y_fitted_refined','z_fitted_refined',
+                        "sigma_x","sigma_y","sigma_z",
+                        "max_original","mean_back_original","std_back_original",
+                        "max_tophat","mean_back_tophat","std_back_tophat"]
 
     df_loc['frame'] = frame
     df_loc['channel'] = channel

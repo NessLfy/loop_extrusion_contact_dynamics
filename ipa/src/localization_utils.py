@@ -2,7 +2,10 @@ import scipy.optimize as opt
 import numpy as np
 from scipy.signal import convolve2d
 import warnings
-
+from skimage.transform import resize
+from skimage.morphology import ball
+import warnings
+warnings.filterwarnings("ignore")
 
 # Gaussian fitting functions (LSQ)
 
@@ -137,83 +140,6 @@ def locate_com(
     return x,y,z
 
 EPS = 1e-4
-
-def gauss_2d(xy:tuple, amplitude, x0, y0, sigma_xy, offset):
-    """2D gaussian."""
-    x, y = xy
-    x0 = float(x0)
-    y0 = float(y0)
-    gauss = offset + amplitude * np.exp(
-        -(
-            ((x - x0) ** (2) / (2 * sigma_xy ** (2)))
-            + ((y - y0) ** (2) / (2 * sigma_xy ** (2)))
-        )
-    )
-    return gauss
-
-def gauss_single_spot_2d(image: np.ndarray, c_coord: float, r_coord: float, crop_size=4,EPS = 1e-4) -> tuple:
-    """Gaussian prediction on a single crop centred on spot."""
-    start_dim1 = np.max([int(np.round(r_coord - crop_size // 2)), 0])
-    if start_dim1 < len(image) - crop_size:
-        end_dim1 = start_dim1 + crop_size
-    else:
-        start_dim1 = len(image) - crop_size
-        end_dim1 = len(image)
-
-    start_dim2 = np.max([int(np.round(c_coord - crop_size // 2)), 0])
-    if start_dim2 < len(image) - crop_size:
-        end_dim2 = start_dim2 + crop_size
-    else:
-        start_dim2 = len(image) - crop_size
-        end_dim2 = len(image)
-
-    crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
-
-    x = np.arange(0, crop.shape[1], 1)
-    y = np.arange(0, crop.shape[0], 1)
-    xx, yy = np.meshgrid(x, y)
-  
-    # Guess intial parameters
-    x0 = int(crop.shape[0] // 2)  # Center of gaussian, middle of the crop 
-    y0 = int(crop.shape[1] // 2)  # Center of gaussian, middle of the crop 
-    sigma = max(*crop.shape) * 0.1  # SD of gaussian, 10% of the crop
-    amplitude_max = max(np.max(crop) / 2, np.min(crop))  # Height of gaussian, maximum value
-    initial_guess = [amplitude_max, x0, y0, sigma, 0]
-
-    # Parameter search space bounds
-    lower = [np.min(crop), 0, 0, 0, -np.inf]
-    upper = [
-        np.max(crop) + EPS,
-        crop_size,
-        crop_size,
-        np.inf,
-        np.inf,
-    ]
-    bounds = [lower, upper]
-    try:
-        popt, pcov = opt.curve_fit(
-            gauss_2d,
-            (xx.ravel(), yy.ravel()),
-            crop.ravel(),
-            p0=initial_guess,
-            bounds=bounds,
-        )
-        sd = np.sqrt(np.diag(pcov))
-    except RuntimeError:
-        #print('Runtime')
-        return r_coord, c_coord, 0,0,0
-    amp = popt[0]
-    x0 = popt[1] + start_dim2
-    y0 = popt[2] + start_dim1
-    sdx = sd[1]
-    sdy = sd[2]
-
-    # If predicted spot is out of the border of the image
-    if x0 >= image.shape[1] or y0 >= image.shape[0]:
-        return r_coord, c_coord, 0,0,0
-
-    return y0, x0, sdx,sdy,amp
-
 # Radial symmetry
 
 def radialcenter(I):
@@ -287,14 +213,6 @@ def lsradialcenterfit(m, b, w):
     yc = (smbw * smw - smmw * sbw) / det
 
     return xc, yc
-
-def get_crop(r_coord,c_coord,crop_size,image):
-    start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
-    start_dim2, end_dim2 = find_start_end(c_coord, image.shape[1], crop_size)
-
-    crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
-    
-    return crop, start_dim1, end_dim1, start_dim2, end_dim2
 
 def get_crop_3d(r_coord,c_coord,z_coord,crop_size,crop_size_z,image):
     start_dim1, end_dim1 = find_start_end(r_coord, image.shape[1], crop_size)
@@ -390,21 +308,22 @@ def gauss_single_spot_2d(crop: np.ndarray, c_coord: float, r_coord: float, crop_
 
 
 def gauss_single_spot_2d_1d(
-    image: np.ndarray,
+    image_tophat: np.ndarray,
     c_coord: float,
     r_coord: float,
     z_coord: float,
     crop_size: int,
     crop_size_z: int,
+    raw_image: np.ndarray,
 ) :
-    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
-    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
-    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+    start_dim1, end_dim1 = find_start_end(c_coord, image_tophat.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image_tophat.shape[2], crop_size)
+    start_dim3, end_dim3 = find_start_end(z_coord, image_tophat.shape[0], crop_size_z)
 
-    crop = image[int(z_coord),start_dim1:end_dim1, start_dim2:end_dim2]
+    crop = image_tophat[int(z_coord),start_dim1:end_dim1, start_dim2:end_dim2]
     
-    signal=image[start_dim3:end_dim3,int(c_coord),int(r_coord)]
-    
+    signal=image_tophat[start_dim3:end_dim3,int(c_coord),int(r_coord)]
+
     amp_xy,x,y,sigma_xy,offset_xy,sx,sy=gauss_single_spot_2d(crop, c_coord, r_coord, crop_size)
     amp_z,z,sigma,offset_z,sz=gauss_single_spot_1d(signal,z_coord)
     
@@ -413,15 +332,20 @@ def gauss_single_spot_2d_1d(
     z0 = z + start_dim3
     
     # If predicted spot is out of the border of the image
-    if x0 >= image.shape[1] or y0 >= image.shape[2] or z0 >= image.shape[0]:
+    if x0 >= image_tophat.shape[1] or y0 >= image_tophat.shape[2] or z0 >= image_tophat.shape[0]:
         print(z)
         # plt.plot(signal)
         # plt.plot(gauss_1d(np.arange(len(signal)),amp_z,z,sz,offset_z))
         # plt.show()
         print('Out of border')
-        return r_coord, c_coord, z_coord,0,0,0
+        return r_coord, c_coord, z_coord,0,0,0,0,0,0,0,0,0
 
-    return x0, y0, z0, sx, sy,sz
+    max_spot_tophat,mean_back_tophat,std_back_tophat = compute_snr(z_coord,r_coord,c_coord, image_tophat, crop_size,crop_size_z)
+
+    max_spot,mean_back,std_back = compute_snr(z_coord,r_coord,c_coord, raw_image, crop_size,crop_size_z)
+
+
+    return x0, y0, z0, sx, sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
 # Radial symmetry
 def get_crop(r_coord,c_coord,crop_size,image):
     start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
@@ -430,3 +354,24 @@ def get_crop(r_coord,c_coord,crop_size,image):
     crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
     
     return crop, start_dim1, end_dim1, start_dim2, end_dim2
+
+def compute_snr(z_coord,r_coord,c_coord, image, crop_size_xy,crop_size_z):
+
+    crop,*_ = get_crop_3d(r_coord,c_coord,z_coord,crop_size_xy,crop_size_z,image)
+
+    disk_ = ball(2)
+
+    disk_resized = resize(disk_, crop.shape, mode='constant', anti_aliasing=True)
+
+    disk_resized = np.where(disk_resized > 0,1,0)
+
+    crop_back = crop * (disk_resized == 0)
+
+    crop_spot = crop * (disk_resized == 1)
+
+    max_spot = np.max(crop_spot)
+    std_back = np.std(crop_back[crop_back > 0])
+    mean_back = np.mean(crop_back[crop_back > 0])
+
+    return max_spot,mean_back,std_back
+
