@@ -126,7 +126,7 @@ def find_tracks_to_refine(track1,track2,model,cutoff=1.0,proportion_good_track=0
     d_corrected[coord_zero_1] = [0,0,0]
     d_corrected[coord_zero_2] = [0,0,0]
 
-    dist_full = np.sqrt(np.sum((d_corrected*(0.13,0.13,0.3))**2,axis=1))
+    dist_full = np.sqrt(np.sum((d_corrected)**2,axis=1))
 
     if len(dist_full[(dist_full < cutoff) & (dist_full > 0)])/len(dist_full) >= proportion_good_track:
         return True
@@ -152,7 +152,7 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
     d_corrected[coord_zero_1] = [0,0,0]
     d_corrected[coord_zero_2] = [0,0,0]
 
-    dist_full = np.sqrt(np.sum((d_corrected*(0.13,0.13,0.3))**2,axis=1))
+    dist_full = np.sqrt(np.sum(d_corrected**2,axis=1))
 
     frames_to_correct = np.where(dist_full > cutoff)[0]
 
@@ -167,8 +167,8 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                 d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
                 d2 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 1)].reset_index(drop=True)
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
-                track1[frame] = d1.loc[m[small_m][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
-                track2[frame] = d2.loc[m[small_m][1],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
+                track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um']].values
+                track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um']].values
             else:
                 track1[frame] = [0,0,0]
                 track2[frame] = [0,0,0]
@@ -185,8 +185,8 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
         
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
-                track1[frame] = d1.loc[m[small_m][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
-                track2[frame] = d2.loc[m[small_m][1],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
+                track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um']].values
+                track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um']].values
             else:
                 d1 = d1.loc[np.array(m)[:,0],:].reset_index(drop=True)
                 d2 = d2.loc[np.array(m)[:,1],:].reset_index(drop=True)
@@ -200,8 +200,8 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                     track1[frame] = [0,0,0]
                     track2[frame] = [0,0,0]
                 else:
-                    track1[frame] = d1.loc[m1[0][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
-                    track2[frame] = d2.loc[m2[0][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
+                    track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um']].values
+                    track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um']].values
         
         elif len(m) == 1:
             df_temp_1 = pd.DataFrame(track1[frame - 1]*[0.13,0.13,0.3]).T
@@ -210,22 +210,18 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
             df_temp_2.columns=['x_um','y_um','z_um']
             
             d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
-            d1 = pd.DataFrame(d1.loc[m[0][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']])
+            d1 = pd.DataFrame(d1.loc[m[0][0],['x_um','y_um','z_um']])
             d1=d1.T
             d1.reset_index(drop=True,inplace=True)
-            d1.columns=['x_fitted_refined','y_fitted_refined','z_fitted_refined']
-            d1[["x_um","y_um","z_um"]]=d1[['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values*[0.13,0.13,0.3]
             
             d2 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 1)].reset_index(drop=True)
-            d2 = pd.DataFrame(d2.loc[m[0][1],['x_fitted_refined','y_fitted_refined','z_fitted_refined']])
+            d2 = pd.DataFrame(d2.loc[m[0][1],['x_um','y_um','z_um']])
             d2=d2.T
             d2.reset_index(drop=True,inplace=True)
-            d2.columns=['x_fitted_refined','y_fitted_refined','z_fitted_refined']
-            d2[["x_um","y_um","z_um"]]=d2[['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values*[0.13,0.13,0.3]
             
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
-                track1[frame] = d1.loc[0,['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
-                track2[frame] = d2.loc[0,['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
+                track1[frame] = d1.loc[0,['x_um','y_um','z_um']].values
+                track2[frame] = d2.loc[0,['x_um','y_um','z_um']].values
             
             else:
                 m1 =  assign_closest(d1, df_temp_1, 1.0)
@@ -237,8 +233,8 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                     track1[frame] = [0,0,0]
                     track2[frame] = [0,0,0]
                 else:
-                    track1[frame] = d1.loc[m1[0][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values
-                    track2[frame] = d2.loc[m2[0][0],['x_fitted_refined','y_fitted_refined','z_fitted_refined']].values        
+                    track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um']].values
+                    track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um']].values        
         
         else:
             track1[frame] = [0,0,0]
@@ -259,20 +255,19 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
     d_corrected[coord_zero_1] = [0,0,0]
     d_corrected[coord_zero_2] = [0,0,0]
 
-    dist_corrected = d_corrected*(0.13,0.13,0.3)
-    
+    dist_corrected = d_corrected
     #dist_corrected[dist_corrected > cutoff] = 0
     
     return track1, track2, dist_corrected
 
-def process_df(path_run_folder,cutoff=0.3,proportion_good_track=1.0):
+def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_7', '')
-
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_5', '')
+    
     # Construct the path for the beads
 
     # Extract the stem
@@ -307,22 +302,22 @@ def process_df(path_run_folder,cutoff=0.3,proportion_good_track=1.0):
     for track in d.new_label.unique():
         temp_traj_1 = np.zeros((N_frame+1, 3))
         temp_traj_2 = np.zeros((N_frame+1, 3))
-        snr_c1_temp = np.zeros((N_frame+1,1))
-        snr_c2_temp = np.zeros((N_frame+1,1))
+        snr_c1_temp = np.zeros((N_frame+1,4))
+        snr_c2_temp = np.zeros((N_frame+1,4))
         N_pixel_temp = np.zeros((N_frame+1,1))
         
-        temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values
-        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat']].values
+        temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values*(0.13,0.13,0.3)
+        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat','max_original','mean_back_original','std_back_original']].values
 
-        temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values
-        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat']].values
+        temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined']].values*(0.13,0.13,0.3)
+        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat','max_original','mean_back_original','std_back_original']].values
 
         N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
         if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
             track1, track2,dist = correct_track(temp_traj_1,temp_traj_2,model,df,track,cutoff)
-            trajs_1.append(track1*(0.13,0.13,0.3))
-            trajs_2.append(track2*(0.13,0.13,0.3))
+            trajs_1.append(track1)
+            trajs_2.append(track2)
             distances.append(dist)
             cells.append(track)
             snr_c1.append(snr_c1_temp)
@@ -331,13 +326,13 @@ def process_df(path_run_folder,cutoff=0.3,proportion_good_track=1.0):
 
     return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') 
 
-def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
+def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=1):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_7', '')
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_5', '')
     # Construct the path for the beads
 
     # Extract the stem
@@ -396,4 +391,4 @@ def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=0.8):
             N_pixel.append(N_pixel_temp)
 
     #return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') 
-    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') 
+    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_5', '') 
