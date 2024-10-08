@@ -1,6 +1,5 @@
 import scipy.optimize as opt
 import numpy as np
-from scipy.signal import convolve2d
 import warnings
 from skimage.transform import resize
 from skimage.morphology import ball
@@ -28,6 +27,19 @@ def gauss_3d(xyz, amplitude, x0, y0, z0, sigma_xy, sigma_z, offset):
 EPS = 1e-4
 
 def find_start_end(coord, img_size, crop_size):
+    '''
+    Find the start and end coordinates of the crop given the spot coordinate
+
+    Args:
+    coord: coordinate of the spot
+    img_size: size of the image
+    crop_size: size of the crop
+
+    Returns:
+    start_dim: start coordinate of the crop
+    end_dim: end coordinate of the crop
+
+    '''
     start_dim = np.max([int(np.round(coord - crop_size // 2)), 0])
     if start_dim < img_size - crop_size:
         end_dim = start_dim + crop_size
@@ -46,7 +58,26 @@ def gauss_single_spot(
     crop_size: int,
     crop_size_z: int,
 ) :
-    """Gaussian prediction on a single crop centred on spot."""
+    '''
+    Gaussian prediction on a single crop centred on spot
+
+    Args:
+    image: 3D image
+    c_coord: column coordinate of the spot
+    r_coord: row coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size: size of the crop
+    crop_size_z: size of the crop in z
+
+    Returns:
+    x0: x coordinate of the spot
+    y0: y coordinate of the spot
+    z0: z coordinate of the spot
+    sd_x: standard deviation of the x coordinate (sd of the fit)
+    sd_y: standard deviation of the y coordinate (sd of the fit)
+    sd_z: standard deviation of the z coordinate (sd of the fit)
+
+    '''
 
     start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
     start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
@@ -117,7 +148,22 @@ def locate_com(
     crop_size: int,
     crop_size_z: int,
 ):
-    """Gaussian prediction on a single crop centred on spot."""
+    """
+    Locate the center of mass of a crop centered on a spot
+
+    Args:
+    image: 3D image
+    y_coord: y coordinate of the spot
+    x_coord: x coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size: size of the crop
+    crop_size_z: size of the crop in z
+
+    Returns:
+    x: x coordinate of the spot
+    y: y coordinate of the spot
+    z: z coordinate of the spot
+    """
  
     start_dim1, end_dim1 = find_start_end(y_coord, image.shape[1], crop_size)
     start_dim2, end_dim2 = find_start_end(x_coord, image.shape[2], crop_size)
@@ -143,6 +189,17 @@ EPS = 1e-4
 # Radial symmetry
 
 def radialcenter(I):
+    '''
+    Find the center of a spot using radial symmetry 2D
+
+    Args:
+    I: 2D image
+
+    Returns:
+    xc: x coordinate of the spot
+    yc: y coordinate of the spot
+    sigma: standard deviation of the spot
+    '''
     # Number of grid points
     Ny, Nx = I.shape
     # grid coordinates are -n:n, where Nx (or Ny) = 2*n+1
@@ -215,6 +272,25 @@ def lsradialcenterfit(m, b, w):
     return xc, yc
 
 def get_crop_3d(r_coord,c_coord,z_coord,crop_size,crop_size_z,image):
+    '''
+    Find the crop given the spot coordinates in 3D
+
+    Args:
+    r_coord: row coordinate of the spot
+    c_coord: column coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size: size of the crop
+    crop_size_z: size of the crop in z
+    image: 3D image
+
+    Returns:
+    crop: crop around the spot
+    start_dim1: start coordinate of the crop in the first dimension
+    end_dim1: end coordinate of the crop in the first dimension
+    start_dim2: start coordinate of the crop in the second dimension
+    end_dim2: end coordinate of the crop in the second dimension
+    
+    '''
     start_dim1, end_dim1 = find_start_end(r_coord, image.shape[1], crop_size)
     start_dim2, end_dim2 = find_start_end(c_coord, image.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
@@ -245,7 +321,22 @@ def gauss_2d(xy:tuple, amplitude, x0, y0, sigma_xy, offset):
     return gauss
 
 def gauss_single_spot_1d(signal: np.ndarray, z_coord: float) -> tuple:
-    """Gaussian prediction on a single crop centred on spot."""
+    '''
+    Gaussian prediction on a single crop centred on spot 1D
+
+    Args:
+    signal: 1D signal
+    z_coord: z coordinate of the spot
+
+    Returns:
+    amp: amplitude of the spot
+    z0: z coordinate of the spot
+    sigma: standard deviation of the spot
+    offset: offset of the spot
+    sd: standard deviation of the z coordinate (sd of the fit)
+
+    
+    '''
 
     z = np.arange(0, signal.shape[0], 1)
     initial_guess = [np.max(signal),len(signal)/2,np.std(signal), np.min(signal)]
@@ -270,7 +361,25 @@ def gauss_single_spot_1d(signal: np.ndarray, z_coord: float) -> tuple:
     
     return amp,z0,sigma,offset,sd[1]
 
-def gauss_single_spot_2d(crop: np.ndarray, c_coord: float, r_coord: float, crop_size=4,EPS = 1e-4) -> tuple:
+def gauss_single_spot_2d(crop: np.ndarray, c_coord: float, r_coord: float, crop_size=4) -> tuple:
+    '''
+    Gaussian prediction on a single crop centred on spot 2D
+
+    Args:
+    crop: 2D crop
+    c_coord: column coordinate of the spot
+    r_coord: row coordinate of the spot
+    crop_size: size of the crop
+
+    Returns:
+    amp: amplitude of the spot
+    x0: x coordinate of the spot
+    y0: y coordinate of the spot
+    sigma: standard deviation of the spot
+    offset: offset of the spot
+    sdx: standard deviation of the x coordinate (sd of the fit)
+    sdy: standard deviation of the y coordinate (sd of the fit)
+    '''
     
     x = np.arange(0, crop.shape[1], 1)
     y = np.arange(0, crop.shape[0], 1)
@@ -316,6 +425,36 @@ def gauss_single_spot_2d_1d(
     crop_size_z: int,
     raw_image: np.ndarray,
 ) :
+    '''
+    Gaussian prediction on a single crop centred on spot 2D and 1D
+
+    Args:
+    image_tophat: 3D image
+    c_coord: column coordinate of the spot
+    r_coord: row coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size: size of the crop
+    crop_size_z: size of the crop in z
+    raw_image: 3D raw image
+
+    Returns:
+    x0: x coordinate of the spot
+    y0: y coordinate of the spot
+    z0: z coordinate of the spot
+    sx: standard deviation of the x coordinate (sd of the fit)
+    sy: standard deviation of the y coordinate (sd of the fit)
+    sz: standard deviation of the z coordinate (sd of the fit)
+    max_spot: maximum value of the spot
+    mean_back: mean value of the background
+    std_back: standard deviation of the background
+    max_spot_tophat: maximum value of the spot in the tophat image
+    mean_back_tophat: mean value of the background in the tophat image
+    std_back_tophat: standard deviation of the background in the tophat image
+
+    This function is used to compute the sub-pixel localization of a spot in 3D using a gaussian fit in 2D for xy and 1D for z.
+    It also compute the signal to noise ratio of the spot in the raw image and in the tophat image.  It returns the maximum value of the spot, the mean and standard deviation of the background in the raw image and in the tophat image. 
+    '''
+
     start_dim1, end_dim1 = find_start_end(c_coord, image_tophat.shape[1], crop_size)
     start_dim2, end_dim2 = find_start_end(r_coord, image_tophat.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image_tophat.shape[0], crop_size_z)
@@ -348,6 +487,23 @@ def gauss_single_spot_2d_1d(
     return x0, y0, z0, sx, sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
 # Radial symmetry
 def get_crop(r_coord,c_coord,crop_size,image):
+    '''
+    Find the crop given the spot coordinates
+
+    Args:
+    r_coord: row coordinate of the spot
+    c_coord: column coordinate of the spot
+    crop_size: size of the crop
+    image: 2D image
+
+    Returns:
+    crop: crop around the spot
+    start_dim1: start coordinate of the crop in the first dimension
+    end_dim1: end coordinate of the crop in the first dimension
+    start_dim2: start coordinate of the crop in the second dimension
+    end_dim2: end coordinate of the crop in the second dimension
+
+    '''
     start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
     start_dim2, end_dim2 = find_start_end(c_coord, image.shape[1], crop_size)
 
@@ -356,6 +512,26 @@ def get_crop(r_coord,c_coord,crop_size,image):
     return crop, start_dim1, end_dim1, start_dim2, end_dim2
 
 def compute_snr(z_coord,r_coord,c_coord, image, crop_size_xy,crop_size_z):
+    '''
+    Compute the signal to noise ratio of a spot
+
+    Args:
+    z_coord: z coordinate of the spot
+    r_coord: row coordinate of the spot
+    c_coord: column coordinate of the spot
+    image: 3D image
+    crop_size_xy: size of the crop in xy
+    crop_size_z: size of the crop in z
+
+    Returns:
+    max_spot: maximum value of the spot
+    mean_back: mean value of the background
+    std_back: standard deviation of the background
+
+    This function is used to compute the signal to noise ratio of a spot in 3D. It returns the maximum value of the spot, the mean and standard deviation of the background.
+    To compute the signal to noise ratio, the function first creates a ball of radius 2 centered on the spot. 
+    It then computes the maximum value of the spot and the mean and standard deviation of the background defined as the pixels not present in that ball of radius 2 centered around the spot.
+    '''
 
     crop,*_ = get_crop_3d(r_coord,c_coord,z_coord,crop_size_xy,crop_size_z,image)
 
@@ -381,7 +557,23 @@ def locate_z(
     x_coord: int,
     z_coord: int,
     crop_size_z: int,
-    thresh=0.6):    
+    thresh=0.6): 
+    '''
+    Locate the z coordinate of a spot using the center of mass 
+
+    Args:
+    image: 3D image
+    y_coord: y coordinate of the spot
+    x_coord: x coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size_z: size of the crop in z
+    thresh: threshold for the z coordinate to refine
+    
+    Returns:
+    z: z coordinate of the spot
+    '''
+
+
     
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
     
