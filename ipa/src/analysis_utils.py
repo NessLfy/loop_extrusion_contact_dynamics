@@ -158,10 +158,13 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
 
     df[['x_um','y_um','z_um']] = df[['x_fitted_refined','y_fitted_refined','z_fitted_refined']] * [0.13,0.13,0.3]
 
+    # loop over all the frames to correct (i.e. the frames where the distance between the two colors is larger than the cutoff)
     for frame in frames_to_correct:
         
+        # get the closest points between the two colors in that frame
         m = assign_closest(df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)], df[(df.new_label == label)&(df.frame == frame)&(df.channel == 1)], cutoff)
         
+        # if the frame is the first frame of the track we take the closest points if there is any that is bellow the cutoff
         if frame == 0:
             if(len(m)>=1):
                 d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
@@ -169,30 +172,36 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
                 track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um']].values
                 track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um']].values
+            # otherwise we put a gap
             else:
                 track1[frame] = [0,0,0]
                 track2[frame] = [0,0,0]
         
+        # if there is more than one match bellow the cutoff we take the closest point to the previous point in the same channel
         elif(len(m) > 1):
             
-            df_temp_1 = pd.DataFrame(track1[frame - 1]*[0.13,0.13,0.3]).T
+            df_temp_1 = pd.DataFrame(track1[frame - 1]).T
             df_temp_1.columns=['x_um','y_um','z_um']
-            df_temp_2 = pd.DataFrame(track2[frame - 1]*[0.13,0.13,0.3]).T
+            df_temp_2 = pd.DataFrame(track2[frame - 1]).T
             df_temp_2.columns=['x_um','y_um','z_um']
             
             d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
             d2 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 1)].reset_index(drop=True)
-        
+
+            # if the point comes from a gap, we take the closest point to to the other channel
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
                 track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um']].values
                 track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um']].values
+            
+            # otherwise we take the closest point to the previous point in the same channel
             else:
                 d1 = d1.loc[np.array(m)[:,0],:].reset_index(drop=True)
                 d2 = d2.loc[np.array(m)[:,1],:].reset_index(drop=True)
-                m1 =  assign_closest(d1, df_temp_1, 1.0)
-                m2 =  assign_closest(d2, df_temp_2, 1.0)
+                m1 =  assign_closest(d1, df_temp_1, cutoff)
+                m2 =  assign_closest(d2, df_temp_2, cutoff)
             
+                # if there is no match that is bellow the cutoff we put a gap
                 if len(m1) == 0:
                     track1[frame] = [0,0,0]
                     track2[frame] = [0,0,0]
@@ -203,10 +212,11 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                     track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um']].values
                     track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um']].values
         
+        # if there is only one match bellow the cutoff we check if it is also bellow the cutoff for the same channel and the frame before and take it
         elif len(m) == 1:
-            df_temp_1 = pd.DataFrame(track1[frame - 1]*[0.13,0.13,0.3]).T
+            df_temp_1 = pd.DataFrame(track1[frame - 1]).T
             df_temp_1.columns=['x_um','y_um','z_um']
-            df_temp_2 = pd.DataFrame(track2[frame - 1]*[0.13,0.13,0.3]).T
+            df_temp_2 = pd.DataFrame(track2[frame - 1]).T
             df_temp_2.columns=['x_um','y_um','z_um']
             
             d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
@@ -219,13 +229,15 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
             d2=d2.T
             d2.reset_index(drop=True,inplace=True)
             
+            # check that the previous point is a gap if so we take the new match from the matching between colors
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
                 track1[frame] = d1.loc[0,['x_um','y_um','z_um']].values
                 track2[frame] = d2.loc[0,['x_um','y_um','z_um']].values
             
+
             else:
-                m1 =  assign_closest(d1, df_temp_1, 1.0)
-                m2 =  assign_closest(d2, df_temp_2, 1.0)
+                m1 =  assign_closest(d1, df_temp_1, cutoff)
+                m2 =  assign_closest(d2, df_temp_2, cutoff)
                 if len(m1) == 0:
                     track1[frame] = [0,0,0]
                     track2[frame] = [0,0,0]
@@ -236,6 +248,7 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
                     track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um']].values
                     track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um']].values        
         
+        # if there is no match bellow the cutoff we put a gap
         else:
             track1[frame] = [0,0,0]
             track2[frame] = [0,0,0]
@@ -256,7 +269,6 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
     d_corrected[coord_zero_2] = [0,0,0]
 
     dist_corrected = d_corrected
-    #dist_corrected[dist_corrected > cutoff] = 0
     
     return track1, track2, dist_corrected
 
@@ -266,7 +278,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0):
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_5', '')
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_7', '')
     
     # Construct the path for the beads
 
@@ -332,7 +344,7 @@ def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=1):
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_5', '')
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_7', '')
     # Construct the path for the beads
 
     # Extract the stem
