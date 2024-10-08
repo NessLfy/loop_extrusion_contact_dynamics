@@ -2,10 +2,14 @@ import numpy as np
 import pandas as pd
 from skimage.feature import blob_log
 from localization_utils import gauss_single_spot,gauss_single_spot_2d
-from skimage.morphology import disk
+from skimage.morphology import disk,ball,white_tophat
+from scipy.ndimage import maximum_filter
 import matplotlib.pyplot as plt
 import logging
 from datetime import datetime
+from trackpy.preprocessing import lowpass
+
+
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
 
     """Function to return localizations from a laptrack detection
@@ -209,3 +213,36 @@ def _create_logger(name: str) -> logging.Logger:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+def max_filter(raw_im):
+    '''
+    Function to perform a maximum filter on the image
+
+    Args:
+    raw_im: np.array, the image to filter
+
+    Returns:
+    max_filter: np.array, the filtered image
+
+    This function performs a maximum filter on the image using a ball of radius 7 as footprint
+    '''
+
+    footprint=ball(7)
+    max_filter=maximum_filter(raw_im,footprint=footprint)
+
+    return max_filter
+
+def format(im):
+    '''
+    Function to filter the image
+
+    Args:
+    im: np.array, the image to filter
+
+    Returns:
+    im: np.array, the filtered image
+
+    This function filters the image using a white tophat filter with a disk of radius 2 as footprint and a lowpass filter with a sigma of 1
+    '''
+    im = white_tophat(lowpass(im,1),footprint=np.expand_dims(disk(2),axis=0))
+    return im

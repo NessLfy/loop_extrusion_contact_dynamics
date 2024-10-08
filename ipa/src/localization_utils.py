@@ -375,3 +375,42 @@ def compute_snr(z_coord,r_coord,c_coord, image, crop_size_xy,crop_size_z):
 
     return max_spot,mean_back,std_back
 
+def locate_z(
+    image: np.ndarray,
+    y_coord: int,
+    x_coord: int,
+    z_coord: int,
+    crop_size_z: int,
+    thresh=0.6):    
+    
+    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+    
+    z_c1=np.arange(z_coord-crop_size_z//2,z_coord+crop_size_z//2+1)
+    
+    crop = image[start_dim3:end_dim3,y_coord,x_coord]
+    
+    z=np.sum(z_c1*crop/np.sum(crop))
+ 
+    if((z-z_coord)<-thresh and z_coord-crop_size_z//2-1>=0):
+        z_coord-=1
+        
+        start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+ 
+        z_c1=np.arange(z_coord-crop_size_z//2,z_coord+crop_size_z//2+1)
+    
+        crop = image[start_dim3:end_dim3,y_coord,x_coord]
+    
+        z=np.sum(z_c1*crop/np.sum(crop))
+    
+    elif((z-z_coord)>thresh and z_coord+crop_size_z//2+1<=crop_size_z-1):
+        z_coord+=1
+        
+        start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+ 
+        z_c1=np.arange(z_coord-crop_size_z//2,z_coord+crop_size_z//2+1)
+    
+        crop = image[start_dim3:end_dim3,y_coord,x_coord]
+ 
+        z=np.sum(z_c1*crop/np.sum(crop))
+    
+    return z
