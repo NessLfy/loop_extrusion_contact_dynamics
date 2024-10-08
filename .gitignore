@@ -228,3 +228,4 @@ test.sh
 ipa/processing_dev/*
 scratchpad/chromatic_aberration_correction.ipynb
 pyrightconfig.json
+ipa/scripts/train_n2v2.py
