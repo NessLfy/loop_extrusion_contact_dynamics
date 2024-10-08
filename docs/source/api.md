@@ -1,25 +1,17 @@
 # API
 
-## s01_preprocessing
+## Source
 ```{eval-rst}
-.. automodule:: ipa.s01_preprocessing.build_preprocessing_config
+.. automodule:: ipa.src.analysis_utils
     :members:
-.. automodule:: ipa.s01_preprocessing.run_preprocessing
+.. automodule:: ipa.src.correction_utils
     :members:
-```
-
-## s02_segmentation
-```{eval-rst}
-.. automodule:: ipa.s02_segmentation.build_segmentation_config
+.. automodule:: ipa.src.localization_utils
     :members:
-.. automodule:: ipa.s02_segmentation.run_segmentation
+.. automodule:: ipa.src.preprocessing_utils
     :members:
-```
-
-## s03_feature_extraction
-```{eval-rst}
-.. automodule:: ipa.s03_feature_extraction.build_feature_extraction_config
+.. automodule:: ipa.src.snakemake_utils
     :members:
-.. automodule:: ipa.s03_feature_extraction.run_feature_extraction
+.. automodule:: ipa.src.tracking_utils
     :members:
 ```
