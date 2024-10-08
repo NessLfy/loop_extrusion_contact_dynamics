@@ -272,13 +272,13 @@ def correct_track(track1,track2,model,df,label,cutoff=1.0):
     
     return track1, track2, dist_corrected
 
-def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0):
+def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace('_cxy_9_cz_7', '')
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}', '')
     
     # Construct the path for the beads
 
@@ -336,7 +336,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0):
             snr_c2.append(snr_c2_temp)
             N_pixel.append(N_pixel_temp)
 
-    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace('_cxy_9_cz_7', '') 
+    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '') 
 
 def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=1):
     path_run_folder = Path(path_run_folder)
