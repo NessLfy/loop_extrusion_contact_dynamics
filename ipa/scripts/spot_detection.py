@@ -20,17 +20,60 @@ import nd2
 # function to filter the image
 
 def format(im):
-     im = white_tophat(lowpass(im,1),footprint=np.expand_dims(disk(2),axis=0))
-     return im
+    '''
+    Function to filter the image
+
+    Args:
+    im: np.array, the image to filter
+
+    Returns:
+    im: np.array, the filtered image
+
+    This function filters the image using a white tophat filter with a disk of radius 2 as footprint and a lowpass filter with a sigma of 1
+    '''
+    im = white_tophat(lowpass(im,1),footprint=np.expand_dims(disk(2),axis=0))
+    return im
 
 def max_filter(raw_im):
+    '''
+    Function to perform a maximum filter on the image
+
+    Args:
+    raw_im: np.array, the image to filter
+
+    Returns:
+    max_filter: np.array, the filtered image
+
+    This function performs a maximum filter on the image using a ball of radius 7 as footprint
+    '''
+
     footprint=ball(7)
     max_filter=maximum_filter(raw_im,footprint=footprint)
+
     return max_filter
 
 # function to perform the detections
 
 def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
+    '''
+    Function to process each individual label
+
+    Args:
+    l: int, the label to process
+    labels: np.array, the labels of the image
+    raw_im: np.array, the raw image
+    max_filter_image: np.array, the maximum filter image
+    filtered_image: np.array, the filtered image (tophat + lowpass)
+
+    Returns:
+    max_coords_2: list, the coordinates of the 5 brightest pixels
+    n_pixels: list, the number of pixels in the label
+    snr: list, the signal to noise ratio of the 5 brightest pixels in the filtered image (tophat + lowpass)
+    snr_o: list, the signal to noise ratio of the 5 brightest pixels in the raw image 
+
+    This function processes each label in the image and returns the coordinates of the 5 brightest pixels, the number of pixels in the label,
+    the signal to noise ratio of the 5 brightest pixels in the filtered image and the signal to noise ratio of the 5 brightest pixels in the raw image
+    '''
 
     im_masked_max = max_filter_image * (labels == l)
 
@@ -101,17 +144,27 @@ def locate_z(
     return z
 
 def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,channel:int,max_filter_image:np.array,labels:np.array,crop_size_xy:int = 4,crop_size_z:int = 4,method:str = "gauss") -> pd.DataFrame:
-    """_summary_
+    """
+    Function to detect the 5 brightest pixels in each label and make a dataframe of the sub-pixel localizations
 
     Args:
-        raw_im (np.array): the raw image to segment
+        raw_im (np.array): the raw image to detect spots in
+        filtered_image (np.array): the filtered image to detect spots in
         frame (int): the frame to segment
-        sd (float): the sd of the peak intensity (threshold of segmentation)
-        n (int, optional): how much brighter than the sd of the whole image to threshold
-        thresh (float, optional): threshold for the gaussian fitting filter. Filter on the standard deviation of the fit (based on the covariance of the parameters) Defaults to 0.5.
-
+        channel (int): the channel to segment
+        max_filter_image (np.array): the maximum filter image
+        labels (np.array): the labels of the image
+        crop_size_xy (int): the size of the crop in the xy plane
+        crop_size_z (int): the size of the crop in the z plane
+        method (str): the method to use for fitting the spots    
+        
     Returns:
         pd.DataFrame: Dataframe of sub-pixel localizations of the detected spots
+
+    This function detects the 5 brightest pixels in each label and makes a dataframe of the sub-pixel localizations. The function can use either the center of mass or a gaussian fit to fit the spots.
+    The function loops over all labels in the image and process them using the function process_labels. 
+    The function then checks if the detected spots are close to the edge of the image and removes them if they are.
+    The function then fits the spots using either the center of mass or a gaussian fit and returns a dataframe of the sub-pixel localizations.
     """
     labs = []
     max_coords_2 = []
@@ -213,6 +266,27 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
 # function to load and save the data
 
 def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z):
+    """
+    Function to process the input data and save the output to a file
+
+    Args:
+        input_path (str): The input image file
+        output_file_path (str): The output file
+        frame (int): The frame to process
+        channel (int): The channel to process
+        labels (str): The label image
+        crop_xy (int): The crop size in the xy plane
+        crop_z (int): The crop size in the z plane
+
+    Returns:
+        None
+
+    This function processes the input data and saves the output to a file. The function first checks if the output file already exists and returns if it does.
+    The function then loads the input image and the labels and processes the image using the functions format and max_filter. 
+    The function then detects the spots using the function max5_detection and saves the output to a file.
+    The function uses a lock to ensure thread-safe I/O operations.
+    """
+
     with lock:
         # Check if the output file already exists
         if os.path.exists(output_file_path):
@@ -241,10 +315,31 @@ def processing(input_path, output_file_path, frame, channel, labels, crop_xy, cr
         spot_df.to_csv(output_file_path, index=False)
 
 def init_process(shared_lock):
+    '''
+    Function to initialize the lock for the parallel processing
+
+    Args:
+    shared_lock (Lock): The lock to use for the parallel processing
+
+    Returns:
+    None
+    '''
     global lock
     lock = shared_lock
 
 def processing_chunk(chunk):
+    '''
+    Function to process a chunk of data
+
+    Args:
+    chunk (list): The chunk of data to process
+
+    Returns:
+    list: The results of the processing
+
+    This function processes a chunk of data in parallel using the processing function.
+    The function returns the results of the processing.
+    '''
     results = []
     for args in chunk:
         # Unpack the arguments
@@ -260,6 +355,18 @@ def chunkify(lst, n):
         yield lst[i:i + n]
 
 def read_and_concatenate_csv(files):
+    '''
+    Function to read and concatenate the csv files
+
+    Args:
+    files (str): The file to read and concatenate
+
+    Returns:
+    pd.DataFrame: The concatenated dataframe
+
+    This function reads and concatenates the csv files and returns the concatenated dataframe.
+    '''
+
     try:
         df_temp = pd.read_csv(files)
     except pd.errors.EmptyDataError:
@@ -291,7 +398,7 @@ def main():
     # im = da.from_zarr(input_path, component='0/')
     im = nd2.imread(input_path, dask=True)
     if len(np.shape(im)) == 4:
-        im = im.reshape(im.shape[0]//15,15,2,im.shape[-2],im.shape[-1])
+        im = im.reshape(im.shape[0]//8,8,2,im.shape[-2],im.shape[-1])
 
     output_path = (args.output_file).strip('.csv') 
     
