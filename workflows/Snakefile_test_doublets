@@ -61,7 +61,7 @@ rule compute_detections:
     threads: threads
     shell:
         """
-        python -m ipa.scripts.spot_detection --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
+        python -m ipa.scripts.spot_detection_single_frame --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
         """
 
 rule compute_labels_full:
