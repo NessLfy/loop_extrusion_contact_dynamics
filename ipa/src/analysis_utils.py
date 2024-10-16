@@ -133,7 +133,7 @@ def find_tracks_to_refine(track1,track2,model,cutoff=1.0,proportion_good_track=0
     else:
         return False
 
-def correct_track(track1,track2,model,df,label,snr1,snr2,cutoff=1.0):
+def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
     track1 = np.array(track1)
     track2 = np.array(track2)
 
@@ -159,7 +159,7 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,cutoff=1.0):
 
     frames_to_correct = np.where(dist_full > cutoff)[0]
 
-    df[['x_um','y_um','z_um']] = df[['x_fitted_refined','y_fitted_refined','z_fitted_refined']] * [0.13,0.13,0.3]
+    df[['x_um','y_um','z_um']] = df[['x_fitted_refined','y_fitted_refined','z_fitted_refined']] * pixel_size
 
     # loop over all the frames to correct (i.e. the frames where the distance between the two colors is larger than the cutoff)
     for frame in frames_to_correct:
@@ -297,7 +297,7 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,cutoff=1.0):
     
     return track1, track2, dist_corrected,snr1,snr2
 
-def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7):
+def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,pixel_size=[0.13,0.13,0.3]):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
@@ -336,6 +336,8 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7):
     snr_c2 = []
     N_pixel = []
 
+    pixel_size.extend((1,1,1))
+
     for track in d.new_label.unique():
         temp_traj_1 = np.zeros((N_frame+1, 6))
         temp_traj_2 = np.zeros((N_frame+1, 6))
@@ -343,16 +345,16 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7):
         snr_c2_temp = np.zeros((N_frame+1,4))
         N_pixel_temp = np.zeros((N_frame+1,1))
         
-        temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*(0.13,0.13,0.3,1,1,1)
+        temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
         snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
 
-        temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*(0.13,0.13,0.3,1,1,1)
+        temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
         snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
 
         N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
         if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
-            track1, track2,dist,snr1,snr2 = correct_track(temp_traj_1,temp_traj_2,model,df,track,snr_c1_temp,snr_c2_temp,cutoff)
+            track1, track2,dist,snr1,snr2 = correct_track(temp_traj_1,temp_traj_2,model,df,track,snr_c1_temp,snr_c2_temp,pixel_size[0:3],cutoff)
             trajs_1.append(track1)
             trajs_2.append(track2)
             distances.append(dist)
