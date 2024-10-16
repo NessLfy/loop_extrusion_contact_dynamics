@@ -38,7 +38,7 @@ labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tr
 
 label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv"
 
-labels_full = ancient(directory(config['save_path']+"/labels/label_image_full_{filename}.zarr"))
+labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
 
 max_threads = os.cpu_count() 
 
@@ -62,7 +62,7 @@ rule compute_detections:
     threads: threads
     shell:
         """
-        python -m ipa.scripts.spot_detection_clean --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
+        python -m ipa.scripts.spot_detection --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
         """
 
 rule compute_labels_full:
@@ -79,7 +79,7 @@ rule compute_labels_full:
         if len(im_big.shape) == 5:
             im = im_big[:,:,1,...]
         else:
-            im = im_big.reshape(im_big.shape[0]//8,8,2,im_big.shape[-2],im_big.shape[-1])[:,:,1,...]
+            im = im_big.reshape(im_big.shape[0]//21,21,2,im_big.shape[-2],im_big.shape[-1])[:,:,1,...]
         # im = im_big 
         #predict labels
         params.lo.info(f"Loaded image {input[0]} for labels computation")
@@ -115,7 +115,7 @@ rule sanity_check:
         im = nd2.imread(input[0],dask=True)
 
         if len(im.shape) != 5:
-            im = im.reshape(im.shape[0]//8,8,2,im.shape[-2],im.shape[-1])
+            im = im.reshape(im.shape[0]//21,21,2,im.shape[-2],im.shape[-1])
 
         
         df = pd.read_parquet(input[1])
