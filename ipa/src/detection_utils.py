@@ -80,14 +80,14 @@ def detections_beads(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,crop_size
     else:
         if fitting == True:
             if(method.lower()=="gauss"):
-                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im[frame]) for i in range(len(pos))]
                 x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_1d,k)))
                 df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
                 df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']
                 df_loc['frame'] = frame
             
             elif method == 'gauss2d2d':
-                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
+                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im[frame]) for i in range(len(pos))]
                 x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_2d,k)))
                 df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
                 df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']
