@@ -3,7 +3,7 @@ import pandas as pd
 from multiprocessing import Pool,Lock
 import dask.array as da
 from detection_utils import max5_detection
-from preprocessing_utils import max_filter,format
+from preprocessing_utils import max_filter,format,format_gaussian
 import argparse
 import tqdm
 import os
@@ -12,7 +12,7 @@ import nd2
 
 # function to load and save the data
 
-def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z):
+def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method):
     """
     Function to process the input data and save the output to a file
 
@@ -42,7 +42,7 @@ def processing(input_path, output_file_path, frame, channel, labels, crop_xy, cr
     # im = da.from_zarr(input_path, component='0/')
     im = nd2.imread(input_path, dask=True)
     if len(np.shape(im)) == 4:
-        im = im.reshape(im.shape[0]//8,8,2,im.shape[-2],im.shape[-1])
+        im = im.reshape(im.shape[0]//15,15,2,im.shape[-2],im.shape[-1])
 
     # labels = zarr.open_group(labels)
     labels = da.from_zarr(labels, component='0/')
@@ -53,9 +53,9 @@ def processing(input_path, output_file_path, frame, channel, labels, crop_xy, cr
 
     im_filtered = format(im)  # Assuming format is a predefined function
     max_filter_image = max_filter(im_filtered)  # Assuming max_filter is a predefined function
-
+    #gaussian_im = format_gaussian(im)
     # Assuming max5_detection is a predefined function that returns a DataFrame
-    spot_df = max5_detection(raw_im=im, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z,filtered_image=im_filtered)
+    spot_df = max5_detection(raw_im=im, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z,filtered_image=im_filtered,method=method)
 
     # Use the lock again for writing the file to ensure thread-safe I/O
     with lock:
@@ -90,9 +90,9 @@ def processing_chunk(chunk):
     results = []
     for args in chunk:
         # Unpack the arguments
-        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z = args
+        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method = args
         # Process each item in the chunk
-        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z)
+        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method)
         results.append(result)
     return results
 
@@ -134,6 +134,7 @@ def main():
     parser.add_argument('--labels', type=str, help='label_image')
     parser.add_argument('--crop_size_xy', type=int, help='crop_size_xy')
     parser.add_argument('--crop_size_z', type=int, help='crop_size_z')
+    parser.add_argument('--method', type=str, help='method for fitting')
 
     args = parser.parse_args()
 
@@ -141,11 +142,13 @@ def main():
     # dask.config.set(scheduler='threads', num_workers=1)
 
     threads = args.threads
+    method = args.method
     
     # im = da.from_zarr(input_path, component='0/')
+    
     im = nd2.imread(input_path, dask=True)
     if len(np.shape(im)) == 4:
-        im = im.reshape(im.shape[0]//8,8,2,im.shape[-2],im.shape[-1])
+        im = im.reshape(im.shape[0]//15,15,2,im.shape[-2],im.shape[-1])
 
     output_path = (args.output_file).strip('.csv') 
     
@@ -154,7 +157,7 @@ def main():
     n_frames = np.shape(im)[0]
 
     tasks = [
-    (input_path,f"{output_path}_{frame}_{channel}.csv", frame, channel, labels, args.crop_size_xy, args.crop_size_z)
+    (input_path,f"{output_path}_{frame}_{channel}.csv", frame, channel, labels, args.crop_size_xy, args.crop_size_z,method)
     for frame in range(n_frames) for channel in range(2)]
 
     # channel = 0

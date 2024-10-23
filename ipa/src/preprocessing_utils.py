@@ -1,14 +1,11 @@
 import numpy as np
 import pandas as pd
-from skimage.feature import blob_log
-from localization_utils import gauss_single_spot,gauss_single_spot_2d
 from skimage.morphology import disk,ball,white_tophat
 from scipy.ndimage import maximum_filter
-import matplotlib.pyplot as plt
 import logging
 from datetime import datetime
 from trackpy.preprocessing import lowpass
-
+from skimage.feature import blob_log
 
 def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10 )-> pd.DataFrame:
 
@@ -31,9 +28,8 @@ def get_loc(im:np.array,frame:int,mins:float,maxs:float,thresh:float,nums:int=10
     x_loc =[]
     y_loc =[]
     for i in df.iloc:
-        y,x,*_ = gauss_single_spot_2d(ima,i.x,i.y)
-        x_loc.append(x)
-        y_loc.append(y)
+        x_loc.append(i.x)
+        y_loc.append(i.y)
 
     df['x'] = x_loc
     df['y'] = y_loc
@@ -82,47 +78,9 @@ def compute_h_param(im:np.array,frame:int,mins:float = 1.974 ,maxs:float = 3.0 ,
 
         # compute the mean sd across the image 
 
-        if len(sd) == 0:
-            return 0
-
         mean_sd = np.mean(sd)
 
         return mean_sd
-    
-
-def manual_h_param(path:str,im:np.array,frame:int)->float:
-    """Function to compute the h param from manually picked points on the image
-
-    Args:
-        path (str): path where to find the csv docuemtn containing X , Y **in caps** (default in fiji when you export measurements)
-        im (np.array): the image where you picked the spots (or crop of the image)
-        frame (int): the frame number (careful as python starts at 0 and fiji 1)
-
-    Returns:
-        float: the average standard deviation of the intensity around the selected spots to compute hmax 
-    """
-    # open the csv 
-    df = pd.read_csv(path)
-
-    x_loc =[]
-    y_loc =[]
-    for i in df.iloc:
-        y,x,*_ = gauss_single_spot(im[frame],i.X,i.Y)
-        x_loc.append(x)
-        y_loc.append(y)
-
-    df['x'] = x_loc
-    df['y'] = y_loc
-
-    #compute the sd of the detected spots
-
-    _,sd,_ = heatmap_detection(im,frame=frame,df=df,name='sd')
-
-    # compute the mean sd across the image 
-
-    mean_sd = np.mean(sd)
-
-    return mean_sd
 
 def heatmap_detection(raw_im:np.array,frame:int,df:pd.DataFrame,name:str)-> tuple:
     """Create a heatmap to compute the threshold for h-max detection
@@ -245,4 +203,8 @@ def format(im):
     This function filters the image using a white tophat filter with a disk of radius 2 as footprint and a lowpass filter with a sigma of 1
     '''
     im = white_tophat(lowpass(im,1),footprint=np.expand_dims(disk(2),axis=0))
+    return im
+
+def format_gaussian(im):
+    im = lowpass(im,1)
     return im
