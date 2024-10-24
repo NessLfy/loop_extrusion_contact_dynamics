@@ -3,7 +3,7 @@ import pandas as pd
 import nd2
 import glob
 import os
-from ipa.snakemake_utils import predict_stardist_complete
+from snakemake_utils import predict_stardist_complete
 from tqdm import tqdm
 import dask.array as da
 from zarr_tools import convert
@@ -50,7 +50,7 @@ rule compute_detections:
     threads: threads
     shell:
         """
-        python -m ipa.processing_new_kristina --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
+        python -m ipa.scripts.processing_new_kristina --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
         """
 
 rule compute_labels_full:
@@ -61,10 +61,10 @@ rule compute_labels_full:
     threads:
 	    max_threads
     run: 
-        im_big = nd2.imread(input[0])
+        im_big = nd2.imread(input[0],dask=True)
 
         if len(im_big.shape) != 4:
-            im_big = im_big.reshape(im_big.shape[0]//12,12,im_big.shape[1],im_big.shape[2])
+            im_big = im_big.reshape(im_big.shape[0]//15,15,im_big.shape[1],im_big.shape[2])
         #predict labels
         im = np.max(im_big,axis=1)
         print('Done max proj')
@@ -87,7 +87,7 @@ rule track_cells:
         label_tracked
     shell:
         """
-        python -m ipa.track_cells --labels_file {input} --output_file {output}
+        python -m ipa.scripts.track_cells --labels_file {input} --output_file {output}
         """
 
 EMAIL = config['email']

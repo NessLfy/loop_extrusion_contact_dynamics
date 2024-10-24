@@ -27,3 +27,6 @@ Do not forget to cite our [publication]() if you use any of our provided materia
 
 ---
 This project was generated with the [faim-ipa-project](https://fmi-faim.github.io/ipa-project-template/) copier template.
+'''
+snakemake -s workflows/Snakefile_cells_kristina -c 20 --configfile runs/20240809_testing_pipeline/config_file.yml
+'''
