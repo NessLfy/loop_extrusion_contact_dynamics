@@ -5,7 +5,7 @@ import nd2
 import glob
 from datetime import datetime
 import os
-from snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete,predict_stardist
+from snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete
 from tqdm import tqdm
 from skimage.measure import regionprops_table
 import dask.array as da
@@ -13,6 +13,8 @@ from zarr_tools import convert
 import matplotlib.pyplot as plt
 import dask 
 from skimage.morphology import disk,white_tophat
+from pathlib import Path
+import re
 
 # Define names of the input and output files
 threads = int(config["threads"])
@@ -38,7 +40,11 @@ labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tr
 
 label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv"
 
-labels_full = ancient(directory(config['save_path']+"/labels/label_image_full_{filename}.zarr"))
+labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
+
+beads_path = Path(config['folder_path']).parent / 'beads' 
+
+beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}.pkl',date=beads_path.parent.name)
 
 max_threads = os.cpu_count() 
 
@@ -46,7 +52,8 @@ rule all:
     input:
         detections,
         labels_tracked,
-        plots
+        plots,
+        beads
 
 rule compute_detections:
     input:
@@ -154,6 +161,20 @@ rule sanity_check:
             plt.savefig(output[0].strip('.png')+'_frame_'+str(i)+'.png',dpi=300)
             plt.close()
         plt.savefig(output[0],dpi=300)
+
+rule compute_beads:
+    input: beads_path
+    output: beads
+    params:
+        threads = threads,
+        crop_size_xy = int(config["crop_size_xy"]),
+        crop_size_z = int(config["crop_size_z"]),
+        method = config["method"],
+        raw = config["raw"]
+    shell:
+        """
+        python -m ipa.scripts.beads --input_dir {input} --output_file {output} --threads {params.threads} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --method {params.method} --raw {params.raw}
+        """
 
 EMAIL = config['email']
 
