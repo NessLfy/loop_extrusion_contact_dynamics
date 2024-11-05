@@ -229,3 +229,10 @@ ipa/processing_dev/*
 scratchpad/chromatic_aberration_correction.ipynb
 pyrightconfig.json
 ipa/scripts/train_n2v2.py
+
+logs/*
+ipa/src/old/detection_utils.py
+ipa/src/old/localization_utils.py
+workflows/Snakefile_cells_pia_movies
+ipa/scripts/spot_detection_Pia.py
+workflows/Snakefile_cells_pia_movies
