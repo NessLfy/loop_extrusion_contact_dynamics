@@ -98,8 +98,8 @@ def get_crop(r_coord,c_coord,crop_size,image):
     end_dim2: end coordinate of the crop in the second dimension
 
     '''
-    start_dim1, end_dim1 = find_start_end(r_coord, image.shape[0], crop_size)
-    start_dim2, end_dim2 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[0], crop_size)
 
     crop = image[start_dim1:end_dim1, start_dim2:end_dim2]
     
@@ -125,8 +125,8 @@ def get_crop_3d(r_coord,c_coord,z_coord,crop_size,crop_size_z,image):
     end_dim2: end coordinate of the crop in the second dimension
     
     '''
-    start_dim1, end_dim1 = find_start_end(r_coord, image.shape[1], crop_size)
-    start_dim2, end_dim2 = find_start_end(c_coord, image.shape[2], crop_size)
+    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
 
     crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
@@ -152,8 +152,8 @@ def gauss_single_spot_1d(signal: np.ndarray) -> tuple:
     '''
     z = np.arange(0, signal.shape[0], 1)
     initial_guess = [np.max(signal),len(signal)/2,np.std(signal), np.min(signal)]
-    lower = [0, 0, 0, -np.inf]
-    upper = [1.2*np.max(signal),len(signal),np.inf,np.min(signal)]
+    lower = [0, 0, 0,0]
+    upper = [np.max(signal)*10,len(signal),np.inf,np.max(signal)]
     bounds = [lower, upper]
 
     try:
@@ -195,23 +195,24 @@ def gauss_single_spot_2d(crop: np.ndarray) -> tuple:
     
     x = np.arange(0, crop.shape[1], 1)
     y = np.arange(0, crop.shape[0], 1)
-    yy, xx = np.meshgrid(y, x)
+    yy, xx = np.meshgrid(y, x,indexing="ij")
 
     # Guess intial parameters
-    initial_guess = [np.max(crop), int(crop.shape[0] // 2),int(crop.shape[1] // 2), np.std(crop), np.min(crop)]
+    initial_guess = [np.max(crop)/2, int(crop.shape[0] // 2),int(crop.shape[1] // 2), np.std(crop), np.min(crop)*0.5]
 
     # Parameter search space bounds
-    lower = [0, 0, 0, 0, -np.inf]
-    upper = [1.2*np.max(crop),int(crop.shape[0]),int(crop.shape[1]),np.inf,np.min(crop)]
+    lower = [0, 0, 0, 0, 0]
+    upper = [np.max(crop)*10,int(crop.shape[0]),int(crop.shape[1]),np.inf,np.max(crop)]
     bounds = [lower, upper]
     
     try:
-        popt, pcov = opt.curve_fit(gauss_2d,(xx.ravel(), yy.ravel()),crop.ravel(),p0=initial_guess,bounds=bounds)
+        popt, pcov = opt.curve_fit(gauss_2d,(xx.ravel(), yy.ravel()),crop.ravel(),p0=initial_guess,bounds=bounds)#,max_nfev=10000)
         sd = np.sqrt(np.diag(pcov))
     
-    except RuntimeError:
+    except RuntimeError as e:
+        print("Isotropic",e)
         print('Runtime')
-        return 0,0, 0,0,0,0,0
+        return 0,0,0,0,0,0,0
     except ValueError as e:
         print('ValueError',e)
         return 0,0,0,0,0,0,0
@@ -223,8 +224,8 @@ def gauss_single_spot_2d(crop: np.ndarray) -> tuple:
     offset=popt[4]
     sdx = sd[1]
     sdy = sd[2]
-    
-    return amp,y0, x0, sigma,offset,sdx,sdy
+
+    return amp,x0, y0, sigma,offset,sdx,sdy
 
 def gauss_single_spot_2d_anisotropic(crop: np.ndarray) -> tuple:
     '''
@@ -248,26 +249,27 @@ def gauss_single_spot_2d_anisotropic(crop: np.ndarray) -> tuple:
     
     x = np.arange(0, crop.shape[1], 1)
     y = np.arange(0, crop.shape[0], 1)
-    yy, xx = np.meshgrid(y, x)
+    yy, xx = np.meshgrid(y, x,indexing="ij")
 
     # Guess intial parameters
-    initial_guess = [np.max(crop), int(crop.shape[1] // 2),int(crop.shape[0] // 2), np.std(crop),np.std(crop), np.min(crop)]
+    initial_guess = [np.max(crop)/2, int(crop.shape[1] // 2),int(crop.shape[0] // 2), np.std(crop),np.std(crop), np.min(crop)/2]
 
     # Parameter search space bounds
-    lower = [0, 0, 0, 0,0, -np.inf]
-    upper = [1.2*np.max(crop),int(crop.shape[1]),int(crop.shape[0]),np.inf,np.inf,np.min(crop)]
+    lower = [0, 0, 0, 0,0, 0]
+    upper = [np.max(crop)*10,int(crop.shape[1]),int(crop.shape[0]),np.inf,np.inf,np.max(crop)]
     bounds = [lower, upper]
     
     try:
         popt, pcov = opt.curve_fit(gauss_2d_anisotropic,(xx.ravel(), yy.ravel()),crop.ravel(),p0=initial_guess,bounds=bounds)
         sd = np.sqrt(np.diag(pcov))
     
-    except RuntimeError:
+    except RuntimeError as e:
+        print("Anisotropic",e)
         print('Runtime')
-        return 0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0
     except ValueError as e:
         print('ValueError',e)
-        return 0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0
     
     amp = popt[0]
     x0 = popt[1]
@@ -318,7 +320,7 @@ def gauss_single_spot_3d(
     x = np.arange(0, crop.shape[2], 1)
     y = np.arange(0, crop.shape[1], 1)
     z = np.arange(0, crop.shape[0], 1)
-    zz,yy,xx = np.meshgrid(z,y,x)
+    zz,yy,xx = np.meshgrid(z,y,x,indexing="ij")
 
     # Guess intial parameters
     x0 = int(crop.shape[2] // 2)  # Center of gaussian, middle of the crop
@@ -329,10 +331,104 @@ def gauss_single_spot_3d(
     sigmaz = crop.shape[-1] * 0.1  # SD of gaussian, 10% of the crop
     
     amplitude_max =np.max(crop)
+    initial_guess = [amplitude_max, x0, y0, z0, sigma, sigmaz, np.min(crop)*0.5]
+    # Parameter search space bounds
+    lower = [0, 0, 0, 0, 0, 0,0]
+    upper = [np.max(crop)*10,
+        crop_size,
+        crop_size,
+        crop_size_z,
+        np.inf,
+        np.inf,
+        np.max(crop),
+    ]
+    bounds = [lower, upper]
+    try:
+        popt, pcov,info_dict,mesg,ier = opt.curve_fit(
+            gauss_3d,
+            (xx.ravel(), yy.ravel(), zz.ravel()),
+            crop.ravel(),
+            p0=initial_guess,
+            bounds=bounds,
+            full_output=True
+        )
+        sd = np.sqrt(np.diag(pcov))
+    except RuntimeError:
+        print('Runtime')
+        return 0,0,0,0,0,0,0,0,0
+
+    x0 = popt[1] + start_dim2
+    y0 = popt[2] + start_dim1
+    z0 = popt[3] + start_dim3
+    A=popt[0]
+    sigma_xy=popt[4]
+    sigma_z=popt[5]
+    offset=popt[6]
+    error=np.sum(np.abs(info_dict["fvec"])/crop.ravel())
+    sd_x = sd[1]
+    sd_y = sd[2]
+    sd_z = sd[3]
+
+    # If predicted spot is out of the border of the image
+    if x0 >= image.shape[2] or y0 >= image.shape[1] or z0 >= image.shape[0]:
+        print('Out of border')
+        return 0,0,0,0,0,0,0,0,0
+
+    return x0, y0, z0,A,sigma_xy,sigma_z,offset,error,mesg   #sd_x, sd_y, sd_z,0,0,0,0,0,0
+
+def gauss_single_spot_3d_zhan(
+    image: np.ndarray,
+    c_coord: float,
+    r_coord: float,
+    z_coord: float,
+    crop_size: int,
+    crop_size_z: int,
+) :
+    '''
+    Gaussian prediction on a single crop centred on spot
+
+    Args:
+    image: 3D image
+    c_coord: column coordinate of the spot
+    r_coord: row coordinate of the spot
+    z_coord: z coordinate of the spot
+    crop_size: size of the crop
+    crop_size_z: size of the crop in z
+
+    Returns:
+    x0: x coordinate of the spot
+    y0: y coordinate of the spot
+    z0: z coordinate of the spot
+    sd_x: standard deviation of the x coordinate (sd of the fit)
+    sd_y: standard deviation of the y coordinate (sd of the fit)
+    sd_z: standard deviation of the z coordinate (sd of the fit)
+
+    '''
+    EPS=1e-4
+    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
+    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
+    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
+
+    crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
+
+    x = np.arange(0, crop.shape[2], 1)
+    y = np.arange(0, crop.shape[1], 1)
+    z = np.arange(0, crop.shape[0], 1)
+    zz,yy,xx = np.meshgrid(z,y,x,indexing="ij")
+
+    # Guess intial parameters
+    x0 = int(crop.shape[2] // 2)  # Center of gaussian, middle of the crop
+    y0 = int(crop.shape[1] // 2)  # Center of gaussian, middle of the crop
+    z0 = int(crop.shape[0] // 2)  # Center of gaussian, middle of the crop
+    
+    sigma = max(*crop.shape[:-1]) * 0.1  # SD of gaussian, 10% of the crop
+    sigmaz = crop.shape[-1] * 0.1  # SD of gaussian, 10% of the crop
+    
+    amplitude_max = max(np.max(crop)/2,np.min(crop))
     initial_guess = [amplitude_max, x0, y0, z0, sigma, sigmaz, 0]
     # Parameter search space bounds
-    lower = [np.min(crop), 0, 0, 0, 0, 0, -np.inf]
-    upper = [1.2*np.max(crop),
+    lower = [np.min(crop), 0, 0, 0, 0, 0,-np.inf]
+    upper = [np.max(crop)+EPS,
         crop_size,
         crop_size,
         crop_size_z,
@@ -342,21 +438,27 @@ def gauss_single_spot_3d(
     ]
     bounds = [lower, upper]
     try:
-        popt, pcov = opt.curve_fit(
+        popt, pcov,info_dict,mesg,ier = opt.curve_fit(
             gauss_3d,
             (xx.ravel(), yy.ravel(), zz.ravel()),
             crop.ravel(),
             p0=initial_guess,
             bounds=bounds,
+            full_output=True
         )
         sd = np.sqrt(np.diag(pcov))
     except RuntimeError:
         print('Runtime')
-        return 0,0,0,0,0,0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0,0
 
     x0 = popt[1] + start_dim2
     y0 = popt[2] + start_dim1
     z0 = popt[3] + start_dim3
+    A=popt[0]
+    sigma_xy=popt[4]
+    sigma_z=popt[5]
+    offset=popt[6]
+    error=np.sum(np.abs(info_dict["fvec"])/crop.ravel())
     sd_x = sd[1]
     sd_y = sd[2]
     sd_z = sd[3]
@@ -364,9 +466,9 @@ def gauss_single_spot_3d(
     # If predicted spot is out of the border of the image
     if x0 >= image.shape[1] or y0 >= image.shape[2] or z0 >= image.shape[0]:
         print('Out of border')
-        return 0,0,0,0,0,0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0,0
 
-    return x0, y0, z0,sd_x, sd_y, sd_z,0,0,0,0,0,0
+    return x0, y0, z0,A,sigma_xy,sigma_z,offset,error,mesg   #sd_x, sd_y, sd_z,0,0,0,0,0,0
 
 def gauss_single_spot_2d_1d(
     image_tophat: np.ndarray,
@@ -419,18 +521,19 @@ def gauss_single_spot_2d_1d(
     
     x0 = x + start_dim2
     y0 = y + start_dim1
-    z0 = z + start_dim3 
+    z0 = z + start_dim3
     
     # If predicted spot is out of the border of the image
     if x0 >= image_tophat.shape[1] or y0 >= image_tophat.shape[2] or z0 >= image_tophat.shape[0]:
         print('Out of border')
-        return 0,0,0,0,0,0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0,0
 
-    max_spot_tophat,mean_back_tophat,std_back_tophat = compute_snr(z_coord,r_coord,c_coord, image_tophat, crop_size,crop_size_z)
-
-    max_spot,mean_back,std_back = compute_snr(z_coord,r_coord,c_coord, raw_image, crop_size,crop_size_z)
+    # max_spot_tophat,mean_back_tophat,std_back_tophat = compute_snr(z_coord,r_coord,c_coord, image_tophat, crop_size,crop_size_z)
+    # max_spot,mean_back,std_back = compute_snr(z_coord,r_coord,c_coord, raw_image, crop_size,crop_size_z)
     
-    return x0, y0, z0, sx, sy,sy,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
+    return amp_xy,x0,y0,sigma_xy,offset_xy,amp_z,z0,sigma,offset_z #sx, sy,sz,0,0,0,0,0,0
+
+    #return x0, y0, z0, sx, sy,sy,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
 
 def gauss_single_spot_2d_2d(
     image_tophat: np.ndarray,
@@ -479,10 +582,10 @@ def gauss_single_spot_2d_2d(
     amp_xy,x_yx,y_yx,sigma_xy,offset_xy,sx,sy=gauss_single_spot_2d(crop_yx)
 
     crop_zy = image_tophat[start_dim3:end_dim3,start_dim1:end_dim1,int(r_coord)]
-    amp_zy,y_zy,z_zy,sigma_z,sigma_y,offset_xy,sz,sy=gauss_single_spot_2d_anisotropic(crop_zy)
+    amp_zy,y_zy,z_zy,sigma_y_zy,sigma_z_zy,offset_zy,sz,syz=gauss_single_spot_2d_anisotropic(crop_zy)
 
     crop_zx = image_tophat[start_dim3:end_dim3,int(c_coord),start_dim2:end_dim2]
-    amp_zx,x_zx,z_zx,sigma_z,sigma_x,offset_zx,sz,sx=gauss_single_spot_2d_anisotropic(crop_zx)
+    amp_zx,x_zx,z_zx,sigma_x_zx,sigma_z_zx,offset_zx,sz,sxz=gauss_single_spot_2d_anisotropic(crop_zx)
     
     x0 = x_yx + start_dim2
     y0 = y_yx + start_dim1
@@ -491,13 +594,13 @@ def gauss_single_spot_2d_2d(
     # If predicted spot is out of the border of the image
     if x0 >= image_tophat.shape[1] or y0 >= image_tophat.shape[2] or z0 >= image_tophat.shape[0]:
         print('Out of border')
-        return 0,0,0,0,0,0,0,0,0,0,0,0
+        return 0,0,0,0,0,0,0,0
 
-    max_spot_tophat,mean_back_tophat,std_back_tophat = compute_snr(z_coord,r_coord,c_coord, image_tophat, crop_size,crop_size_z)
+    #max_spot_tophat,mean_back_tophat,std_back_tophat = compute_snr(z_coord,r_coord,c_coord, image_tophat, crop_size,crop_size_z)
 
-    max_spot,mean_back,std_back = compute_snr(z_coord,r_coord,c_coord, raw_image, crop_size,crop_size_z)
+    #max_spot,mean_back,std_back = compute_snr(z_coord,r_coord,c_coord, raw_image, crop_size,crop_size_z)
     
-    return x0, y0, z0, sx, sy,sy,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
+    return x0,y0,z0,sigma_xy,sigma_y_zy,sigma_z_zy,sigma_x_zx,sigma_z_zx #,amp_xy,sigma_xy,offset_xy,amp_zy,sigma_z_zy,sigma_y_zy,offset_zy,amp_zx,#,amp_xy,sigma_xy,offset_xy,  #amp_z,z0,sigma,offset_z #x0, y0, z0, sx, sy,sy,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat
 
 def compute_snr(z_coord,r_coord,c_coord, image, crop_size_xy,crop_size_z):
     '''

@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
-from skimage.morphology import extrema
-from functools import partial
 from localization_utils import gauss_single_spot_3d,gauss_single_spot_2d_1d,locate_z,gauss_single_spot_2d_2d
 from itertools import starmap
 import trackpy as tp
+from scipy.ndimage import maximum_filter
+from skimage.morphology import disk
 
 def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
     '''
@@ -56,65 +55,70 @@ def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
 
     return max_coords_2,n_pixels,snr,snr_o,labs
 
-def detections_beads(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,crop_size_xy:int = 4,crop_size_z:int = 4,fitting:bool = True,method:str = "com") -> pd.DataFrame:
+def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4,fitting:bool = True,method:str = "com",threshold_percentile:float=99.99,radius_cyl_xy:int=7,radius_cyl_z:int=11) -> pd.DataFrame:
     
-    im_mask = extrema.h_maxima(raw_im[frame],h=n*int(sd))
+    d_xy=radius_cyl_xy
+    d_z=radius_cyl_z
 
-    # extract the points and fit gaussian
-    z,y,x = np.nonzero(im_mask)
+    footprint=np.zeros((d_z,disk(d_xy//2).shape[0],disk(d_xy//2).shape[0]))
+    for i in range(len(footprint)):
+        footprint[i]=disk(d_xy//2)
+    #print(footprint.shape)
+    threshold=np.percentile(raw_im,threshold_percentile)
 
+    im_max=raw_im*np.where(raw_im>threshold,1,0)
+    im_max=maximum_filter(im_max,footprint=footprint)
+    im_max=raw_im*np.where(raw_im==im_max,1,0)
+    
+    z,y,x = np.nonzero(im_max)
+    
     # remove duplicates
     array = np.array([z,y,x]).T
     array = set([tuple(i) for i in array])
     z,y,x = zip(*array)
     pos=np.vstack((z,y,x)).T
     margin=np.array((crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
-    shape=raw_im[frame].shape
+    shape=raw_im.shape
     near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
     pos = pos[~near_edge]
     z,y,x = pos.T
     
     if len(x) == 0 or len(y) == 0 or len(z) == 0:
         print("No spots detected")
-        return pd.DataFrame(columns=['x','y','z','x_fitted','y_fitted','z_fitted','frame'])
+        return pd.DataFrame(columns=['x','y','z','x_fitted','y_fitted','z_fitted'])
     else:
         if fitting == True:
             if(method.lower()=="gauss"):
-                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im[frame]) for i in range(len(pos))]
-                x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_1d,k)))
-                df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
-                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']
-                df_loc['frame'] = frame
+                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
+                amp_xy,x_f,y_f,sigma_xy,offset_xy,amp_z,z_f,sigma,offset_z = zip(*(starmap(gauss_single_spot_2d_1d,k)))
+                df_loc = pd.DataFrame([x,y,z,x_f,y_f,z_f,amp_xy,amp_z,sigma_xy,sigma,offset_xy,offset_z]).T
+                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A_xy","A_z","sigma_xy","sigma_z","offset_xy","offset_z"]
             
             elif method == 'gauss2d2d':
-                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im[frame]) for i in range(len(pos))]
-                x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_2d,k)))
-                df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
-                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']
-                df_loc['frame'] = frame
-
+                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
+                x_f,y_f,z_f,sigma_xy,sigma_y_zy,sigma_z_zy,sigma_x_zx,sigma_z_zx = zip(*(starmap(gauss_single_spot_2d_2d,k)))
+                df_loc = pd.DataFrame([x,y,z,x_f,y_f,z_f,sigma_xy,sigma_y_zy,sigma_z_zy,sigma_x_zx,sigma_z_zx]).T
+                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"sigma_xy","sigma_y_zy","sigma_z_zy","sigma_x_zx","sigma_z_zx"]
+            
             elif(method.lower()=="gauss3d"):
-                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
-                x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_3d,k)))
-                df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s]).T
-                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']
-                df_loc['frame'] = frame
+                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+                x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg= zip(*(starmap(gauss_single_spot_3d,k)))
+                df_loc = pd.DataFrame([x,y,z,x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg]).T
+                df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A","sigma_xy","sigma_z","offset","error","msg"]
             
             elif(method.lower()=="com3d"):
                 df_loc = pd.DataFrame([x,y,z]).T
                 df_loc.columns = ['x','y','z']
                 try:
-                    detections_refined= tp.refine.refine_com(raw_image = raw_im[frame], image= raw_im[frame], radius= [crop_size_z//2,crop_size_xy//2,crop_size_xy//2], coords = df_loc, max_iterations=1,
-                    engine='python', shift_thresh=0.6, characterize=False,
+                    detections_refined= tp.refine.refine_com(raw_image = raw_im, image= raw_im, radius=[crop_size_z//2,crop_size_xy//2,crop_size_xy//2], coords = df_loc, max_iterations=10,
+                    engine='python', shift_thresh=0.5, characterize=False,
                     pos_columns=['z','y','x'])
-                    print(detections_refined)
                 except ValueError:
                    detections_refined = df_loc
                 
                 df_loc['x_fitted_refined'] = detections_refined['x'].values
                 df_loc['y_fitted_refined'] = detections_refined['y'].values
                 df_loc['z_fitted_refined'] = detections_refined['z'].values
-                df_loc['frame'] = frame
             
             elif(method.lower()=="com"):
                 df_loc = pd.DataFrame([x,y,z]).T
@@ -122,25 +126,23 @@ def detections_beads(raw_im: np.ndarray,frame: int,sd: float,n:int = 4,crop_size
                 fitted_2d = []
                 for index,row in df_loc.iterrows():
                     df_temp = df_loc[(df_loc.x == row.x)&(df_loc.y == row.y)&(df_loc.z == row.z)]
-                    detections_refined= tp.refine.refine_com(raw_image = raw_im[frame][int(row.z),...], image= raw_im[frame][int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,engine='python', shift_thresh=0.6, characterize=False,pos_columns=['y','x'])
+                    detections_refined= tp.refine.refine_com(raw_image = raw_im[int(row.z),...], image= raw_im[int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,engine='python', shift_thresh=0.6, characterize=False,pos_columns=['y','x'])
                     fitted_2d.append(detections_refined[['x','y']])
                 detections_refined = pd.concat(fitted_2d)
                 df_loc['x_fitted_refined'] = detections_refined['x'].values
                 df_loc['y_fitted_refined'] = detections_refined['y'].values
                 
                 pos=df_loc[["z","y","x"]].values.astype(int)
-                k = [(raw_im[frame],pos[i][1],pos[i][2],pos[i][0],crop_size_z) for i in range(len(pos))]
+                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_z) for i in range(len(pos))]
                 z_s=[]
                 for i in k:
                     z_s.append(locate_z(*i))
 
                 df_loc["z_fitted_refined"] = z_s
-                df_loc['frame'] = frame
 
         else:
             df_loc = pd.DataFrame([x,y,z]).T
             df_loc.rename(columns={0:'x',1:'y',2:'z'},inplace=True)
-            df_loc['frame'] = [frame] * len(df_loc)
 
     return df_loc
 
@@ -246,7 +248,7 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
     elif method == 'com_3d':
         try:
             detections_refined= tp.refine.refine_com(raw_image = filtered_image, image= filtered_image, radius= [crop_size_z//2,crop_size_xy//2,crop_size_xy//2], coords = df_loc, max_iterations=10,
-            engine='python', shift_thresh=0.5, characterize=True,
+            engine='python', shift_thresh=0.5, characterize=False,
             pos_columns=['z','y','x'])
         except ValueError:
             detections_refined = df_loc
@@ -257,33 +259,22 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
     
     elif method == 'gauss':
         k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
-        x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_1d,k)))
-        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back ,max_spot_tophat,mean_back_tophat,std_back_tophat]).T
-        df_loc.columns=['x','y','z',
-                        'x_fitted_refined','y_fitted_refined','z_fitted_refined',
-                        "sigma_x","sigma_y","sigma_z",
-                        "max_original","mean_back_original","std_back_original",
-                        "max_tophat","mean_back_tophat","std_back_tophat"]
-    
+        amp_xy,x_f,y_f,sigma_xy,offset_xy,amp_z,z_f,sigma,offset_z = zip(*(starmap(gauss_single_spot_2d_1d,k)))
+        df_loc = pd.DataFrame([x,y,z,x_f,y_f,z_f,amp_xy,amp_z,sigma_xy,sigma,offset_xy,offset_z]).T
+        df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A_xy","A_z","sigma_xy","sigma_z","offset_xy","offset_z"]
+
     elif method == 'gauss2d2d':
         k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
-        x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_2d_2d,k)))
-        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back ,max_spot_tophat,mean_back_tophat,std_back_tophat]).T
-        df_loc.columns=['x','y','z',
-                        'x_fitted_refined','y_fitted_refined','z_fitted_refined',
-                        "sigma_x","sigma_y","sigma_z",
-                        "max_original","mean_back_original","std_back_original",
-                        "max_tophat","mean_back_tophat","std_back_tophat"]
+        x_f,y_f,z_f,sigma_xy,sigma_y_zy,sigma_z_zy,sigma_x_zx,sigma_z_zx = zip(*(starmap(gauss_single_spot_2d_2d,k)))
+        df_loc = pd.DataFrame([x,y,z,x_f,y_f,z_f,sigma_xy,sigma_y_zy,sigma_z_zy,sigma_x_zx,sigma_z_zx]).T
+        df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"sigma_xy","sigma_y_zy","sigma_z_zy","sigma_x_zx","sigma_z_zx"]
     
     elif method == 'gauss3d':
-        k = [(filtered_image,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
-        x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back,max_spot_tophat,mean_back_tophat,std_back_tophat = zip(*(starmap(gauss_single_spot_3d,k)))
-        df_loc = pd.DataFrame([x,y,z,x_s,y_s,z_s,sx,sy,sz,max_spot,mean_back,std_back ,max_spot_tophat,mean_back_tophat,std_back_tophat]).T
-        df_loc.columns=['x','y','z',
-                        'x_fitted_refined','y_fitted_refined','z_fitted_refined',
-                        "sigma_x","sigma_y","sigma_z",
-                        "max_original","mean_back_original","std_back_original",
-                        "max_tophat","mean_back_tophat","std_back_tophat"]
+        k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+        x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg= zip(*(starmap(gauss_single_spot_3d,k)))
+        df_loc = pd.DataFrame([x,y,z,x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg]).T
+        df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A","sigma_xy","sigma_z","offset","error","msg"]
+    
     else:
         raise Exception("Invalid fitting method. Method available: com,com3d,gauss,gauss3d")
 
