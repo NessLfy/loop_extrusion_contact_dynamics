@@ -20,15 +20,14 @@ import re
 threads = int(config["threads"])
 
 FILENAME = [x.split('/')[-1].replace(".nd2", "") for x in glob.glob(f"{config['folder_path']}/*.nd2")]
-images = expand("{folder_path}/{filename}.nd2", folder_path=config['folder_path'], filename="{filename}")
 
 plots = expand("{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_sanity_check.png",filename=FILENAME,path=config["save_path"], crop_sizexy=config["crop_size_xy"], crop_size_z=config["crop_size_z"])
 
 plot = "{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_sanity_check.png"
 
-detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
+detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.parquet"
 
-detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv", filename=FILENAME,
+detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.parquet", filename=FILENAME,
          crop_sizexy=config["crop_size_xy"],
          crop_size_z=config["crop_size_z"],
          path=config["save_path"])
@@ -36,9 +35,9 @@ detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_c
 
 labels = config["save_path"]+"/labels/label_image_{filename}.zarr"
 
-labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv", filename=FILENAME)
+labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.parquet", filename=FILENAME)
 
-label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv"
+label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.parquet"
 
 labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
 
@@ -74,7 +73,7 @@ rule compute_detections:
         """
 
 rule compute_labels_full:
-    input: images
+    input: lambda wildcards: f"{config['folder_path']}{wildcards.filename}.nd2"
     output: labels_full
     params: 
         lo = lambda wildcards: create_logger_format(config['save_path'], wildcards)
