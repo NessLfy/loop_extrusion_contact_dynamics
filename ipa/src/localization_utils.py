@@ -289,6 +289,8 @@ def gauss_single_spot_3d(
     z_coord: float,
     crop_size: int,
     crop_size_z: int,
+    filtered_image: np.ndarray,
+    raw:bool = False
 ) :
     '''
     Gaussian prediction on a single crop centred on spot
@@ -315,7 +317,10 @@ def gauss_single_spot_3d(
     start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
 
-    crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
+    if raw:
+        crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
+    else:
+        crop = filtered_image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
 
     x = np.arange(0, crop.shape[2], 1)
     y = np.arange(0, crop.shape[1], 1)

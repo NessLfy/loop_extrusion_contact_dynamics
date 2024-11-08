@@ -41,9 +41,9 @@ def matching_beads(args):
             im_c1=white_tophat(tp.preprocessing.lowpass(im_c1,1),footprint=np.expand_dims(disk(2),axis=0))
             im_c2=white_tophat(tp.preprocessing.lowpass(im_c2,1),footprint=np.expand_dims(disk(2),axis=0))
         
-        detections_c1 = det.detections_beads(raw_im=im_c1,crop_size_xy=crop_size_xy,crop_size_z=crop_size_z,fitting=True,method=method)
+        detections_c1 = det.detections_beads(raw_im=im_c1,crop_size_xy=crop_size_xy,crop_size_z=crop_size_z,fitting=True,method=method,raw=raw)
 
-        detections_c2 = det.detections_beads(raw_im=im_c2,crop_size_xy=crop_size_xy,crop_size_z=crop_size_z,fitting=True,method=method)
+        detections_c2 = det.detections_beads(raw_im=im_c2,crop_size_xy=crop_size_xy,crop_size_z=crop_size_z,fitting=True,method=method,raw=raw)
         print(frame,len(detections_c1),len(detections_c2))
         if(len(detections_c1)>0 and len(detections_c2)>0):
             detections_c1[["x_um","y_um","z_um"]]=voxel_size*detections_c1[["x_fitted_refined","y_fitted_refined","z_fitted_refined"]]

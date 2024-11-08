@@ -55,7 +55,7 @@ def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
 
     return max_coords_2,n_pixels,snr,snr_o,labs
 
-def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4,fitting:bool = True,method:str = "com",threshold_percentile:float=99.99,radius_cyl_xy:int=7,radius_cyl_z:int=11) -> pd.DataFrame:
+def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4,fitting:bool = True,method:str = "com",threshold_percentile:float=99.99,radius_cyl_xy:int=7,radius_cyl_z:int=11,raw:bool=False) -> pd.DataFrame:
     
     d_xy=radius_cyl_xy
     d_z=radius_cyl_z
@@ -101,7 +101,7 @@ def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4
                 df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"sigma_xy","sigma_y_zy","sigma_z_zy","sigma_x_zx","sigma_z_zx"]
             
             elif(method.lower()=="gauss3d"):
-                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+                k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im,raw) for i in range(len(pos))]
                 x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg= zip(*(starmap(gauss_single_spot_3d,k)))
                 df_loc = pd.DataFrame([x,y,z,x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg]).T
                 df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A","sigma_xy","sigma_z","offset","error","msg"]
@@ -146,7 +146,7 @@ def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4
 
     return df_loc
 
-def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,channel:int,max_filter_image:np.array,labels:np.array,crop_size_xy:int = 4,crop_size_z:int = 4,method:str = "gauss") -> pd.DataFrame:
+def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,channel:int,max_filter_image:np.array,labels:np.array,crop_size_xy:int = 4,crop_size_z:int = 4,method:str = "gauss",raw:bool = False) -> pd.DataFrame:
     """
     Function to detect the 5 brightest pixels in each label and make a dataframe of the sub-pixel localizations
 
@@ -270,7 +270,7 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
         df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"sigma_xy","sigma_y_zy","sigma_z_zy","sigma_x_zx","sigma_z_zx"]
     
     elif method == 'gauss3d':
-        k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z) for i in range(len(pos))]
+        k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,filtered_image,raw) for i in range(len(pos))]
         x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg= zip(*(starmap(gauss_single_spot_3d,k)))
         df_loc = pd.DataFrame([x,y,z,x_f, y_f,z_f,amp,sigma_xy,sigma_z,offset,error,msg]).T
         df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A","sigma_xy","sigma_z","offset","error","msg"]

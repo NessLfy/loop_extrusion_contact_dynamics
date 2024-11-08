@@ -9,10 +9,11 @@ import tqdm
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import nd2
+from pathlib import Path
 
 # function to load and save the data
 
-def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method):
+def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method,raw):
     """
     Function to process the input data and save the output to a file
 
@@ -53,9 +54,8 @@ def processing(input_path, output_file_path, frame, channel, labels, crop_xy, cr
 
     im_filtered = format(im)  # Assuming format is a predefined function
     max_filter_image = max_filter(im_filtered)  # Assuming max_filter is a predefined function
-    #gaussian_im = format_gaussian(im)
     # Assuming max5_detection is a predefined function that returns a DataFrame
-    spot_df = max5_detection(raw_im=im, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z,filtered_image=im_filtered,method=method)
+    spot_df = max5_detection(raw_im=im, frame=frame, channel=channel, max_filter_image=max_filter_image, labels=labels, crop_size_xy=crop_xy, crop_size_z=crop_z,filtered_image=im_filtered,method=method,raw = raw)
 
     # Use the lock again for writing the file to ensure thread-safe I/O
     with lock:
@@ -90,9 +90,9 @@ def processing_chunk(chunk):
     results = []
     for args in chunk:
         # Unpack the arguments
-        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method = args
+        input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method,raw = args
         # Process each item in the chunk
-        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method)
+        result = processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method,raw)
         results.append(result)
     return results
 
@@ -135,6 +135,7 @@ def main():
     parser.add_argument('--crop_size_xy', type=int, help='crop_size_xy')
     parser.add_argument('--crop_size_z', type=int, help='crop_size_z')
     parser.add_argument('--method', type=str, help='method for fitting')
+    parser.add_argument('--raww', type=bool, help='if to fit on the raw image or not')
 
     args = parser.parse_args()
 
@@ -144,20 +145,24 @@ def main():
     threads = args.threads
     method = args.method
     
+    raw = args.raww
+
     # im = da.from_zarr(input_path, component='0/')
     
     im = nd2.imread(input_path, dask=True)
     if len(np.shape(im)) == 4:
         im = im.reshape(im.shape[0]//15,15,2,im.shape[-2],im.shape[-1])
 
-    output_path = (args.output_file).strip('.csv') 
+    output_path = Path(args.output_file).with_suffix('')
+
+    output_path = str(output_path)
     
     labels = args.labels
 
     n_frames = np.shape(im)[0]
 
     tasks = [
-    (input_path,f"{output_path}_{frame}_{channel}.csv", frame, channel, labels, args.crop_size_xy, args.crop_size_z,method)
+    (input_path,f"{output_path}_{frame}_{channel}.parquet", frame, channel, labels, args.crop_size_xy, args.crop_size_z,method,raw)
     for frame in range(n_frames) for channel in range(2)]
 
     # channel = 0
@@ -174,7 +179,7 @@ def main():
         _ = list(tqdm.tqdm(pool.imap(processing_chunk, task_chunks), total=len(task_chunks)))
 
     # Parallel file processing
-    files_to_process = [os.path.join('/'.join(output_path.split('/')[:-1]), f) for f in os.listdir('/'.join(output_path.split('/')[:-1])) if f.endswith('.csv') and output_path.split('/')[-1] in f]
+    files_to_process = [os.path.join('/'.join(output_path.split('/')[:-1]), f) for f in os.listdir('/'.join(output_path.split('/')[:-1])) if f.endswith('.parquet') and output_path.split('/')[-1] in f]
     with ProcessPoolExecutor(max_workers=threads) as executor:
         df_futures = [executor.submit(read_and_concatenate_csv, file) for file in files_to_process]
     
@@ -184,7 +189,7 @@ def main():
     for file in files_to_process:
         os.remove(file)
     
-    df_final.to_parquet(output_path+'.csv', index=False)
+    df_final.to_parquet(output_path+'.parquet', index=False)
 
 if __name__ == '__main__':
     main()
