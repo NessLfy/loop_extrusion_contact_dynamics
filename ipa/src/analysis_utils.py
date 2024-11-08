@@ -297,13 +297,13 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
     
     return track1, track2, dist_corrected,snr1,snr2
 
-def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,pixel_size=[0.13,0.13,0.3]):
+def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,pixel_sizeinit=[0.13,0.13,0.3],raw=False):
     path_run_folder = Path(path_run_folder)
     df = pd.read_parquet(path_run_folder)
     N_frame = np.max(df.frame.unique())
     # Get the first CSV file path
     # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}', '')
+    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}_fit_{raw}_image', '')
     
     # Construct the path for the beads
 
@@ -313,13 +313,17 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     # Define the date pattern (e.g., YYYYMMDD)
     date_pattern = r'\d{8}'
 
+    pattern_raw = r'(True|False)'
+
     # Search for the date in the stem
     match = re.search(date_pattern, stem)
 
-    path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() + '.pkl')
+    match_raw = re.search(pattern_raw, stem)
+
+    path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() +'_fit_' + match_raw.group() +'_image.pkl')
 
     df_labels = pd.read_parquet(path_labels)
-    df_labels[["centroid-0","centroid-1"]]=df_labels[["centroid-0","centroid-1"]]*(0.13,0.13)
+    df_labels[["centroid-0","centroid-1"]]=df_labels[["centroid-0","centroid-1"]]*pixel_sizeinit[0:2]
     merged_df = pd.merge(df, df_labels[[ 'frame', 'label', 'new_label']], on=[ 'frame', 'label'], how='left')
 
     df['new_label'] = merged_df['new_label']
@@ -336,20 +340,22 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     snr_c2 = []
     N_pixel = []
 
+    pixel_size = list(pixel_sizeinit)
+
     pixel_size.extend((1,1,1))
 
     for track in d.new_label.unique():
         temp_traj_1 = np.zeros((N_frame+1, 6))
         temp_traj_2 = np.zeros((N_frame+1, 6))
-        snr_c1_temp = np.zeros((N_frame+1,4))
-        snr_c2_temp = np.zeros((N_frame+1,4))
+        snr_c1_temp = np.zeros((N_frame+1,3))
+        snr_c2_temp = np.zeros((N_frame+1,3))
         N_pixel_temp = np.zeros((N_frame+1,1))
-        
+
         temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
-        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
 
         temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
-        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
 
         N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
