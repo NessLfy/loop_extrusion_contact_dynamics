@@ -304,7 +304,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     # Get the first CSV file path
     # Construct the path for the labels
     path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}_fit_{raw}_image', '')
-    
+
     # Construct the path for the beads
 
     # Extract the stem
@@ -313,7 +313,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     # Define the date pattern (e.g., YYYYMMDD)
     date_pattern = r'\d{8}'
 
-    pattern_raw = r'(True|False)'
+    pattern_raw = r'(true|false)'
 
     # Search for the date in the stem
     match = re.search(date_pattern, stem)
@@ -323,6 +323,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() +'_fit_' + match_raw.group() +'_image.pkl')
 
     df_labels = pd.read_parquet(path_labels)
+
     df_labels[["centroid-0","centroid-1"]]=df_labels[["centroid-0","centroid-1"]]*pixel_sizeinit[0:2]
     merged_df = pd.merge(df, df_labels[[ 'frame', 'label', 'new_label']], on=[ 'frame', 'label'], how='left')
 
