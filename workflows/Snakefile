@@ -53,6 +53,8 @@ beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_fit_{r
         date=beads_path.parent.name,
         raw=config['raw'])
 
+bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_fit_{raw}_image.pkl'
+
 max_threads = os.cpu_count() 
 
 rule all:
@@ -74,7 +76,7 @@ rule compute_detections:
         crop_size_xy = int(config["crop_size_xy"]),
         crop_size_z = int(config["crop_size_z"]),
         method = config["method"],
-        raw = config["raw"]
+        raw = lambda wildcards: wildcards.raw
     threads: threads
     shell:
         """
@@ -172,13 +174,13 @@ rule sanity_check:
 
 rule compute_beads:
     input: beads_path
-    output: beads
+    output: bead
     params:
         threads = threads,
         crop_size_xy = int(config["crop_size_xy"]),
         crop_size_z = int(config["crop_size_z"]),
         method = config["method"],
-        raw = config["raw"]
+        raw = lambda wildcards: wildcards.raw
     shell:
         """
         python -m ipa.scripts.beads --input_dir {input} --output_file {output} --threads {params.threads} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --method {params.method} --raw {params.raw}

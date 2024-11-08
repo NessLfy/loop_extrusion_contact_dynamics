@@ -135,7 +135,7 @@ def main():
     parser.add_argument('--crop_size_xy', type=int, help='crop_size_xy')
     parser.add_argument('--crop_size_z', type=int, help='crop_size_z')
     parser.add_argument('--method', type=str, help='method for fitting')
-    parser.add_argument('--raww', type=bool, help='if to fit on the raw image or not')
+    parser.add_argument('--raw', type=bool, help='if to fit on the raw image or not')
 
     args = parser.parse_args()
 
@@ -145,7 +145,7 @@ def main():
     threads = args.threads
     method = args.method
     
-    raw = args.raww
+    raw = args.raw
 
     # im = da.from_zarr(input_path, component='0/')
     
