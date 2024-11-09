@@ -21,22 +21,24 @@ threads = int(config["threads"])
 
 FILENAME = [x.split('/')[-1].replace(".nd2", "") for x in glob.glob(f"{config['folder_path']}/*.nd2")]
 
-plots = expand("{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_fit_{raw}_image_sanity_check.png", 
+plots = expand("{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_sanity_check.png", 
         filename=FILENAME,
         path=config["save_path"], 
         crop_sizexy=config["crop_size_xy"], 
         crop_size_z=config["crop_size_z"],
-        raw = config["raw"])
+        raw = config["raw"],
+        method = config["method"])
 
-plot = "{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_fit_{raw}_image_sanity_check.png"
+plot = "{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_sanity_check.png"
 
-detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_fit_{raw}_image.parquet"
+detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image.parquet"
 
-detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_fit_{raw}_image.parquet", filename=FILENAME,
+detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image.parquet", filename=FILENAME,
          crop_sizexy=config["crop_size_xy"],
          crop_size_z=config["crop_size_z"],
          path=config["save_path"],
-         raw=config["raw"])
+         raw=config["raw"],
+         method=config["method"])
 
 
 labels = config["save_path"]+"/labels/label_image_{filename}.zarr"
@@ -49,11 +51,12 @@ labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}
 
 beads_path = Path(config['folder_path']).parent / 'beads' 
 
-beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_fit_{raw}_image.pkl',
+beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl',
         date=beads_path.parent.name,
-        raw=config['raw'])
+        raw=config['raw'],
+        method=config['method'])
 
-bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_fit_{raw}_image.pkl'
+bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl'
 
 max_threads = os.cpu_count() 
 
@@ -75,7 +78,7 @@ rule compute_detections:
         log_path = config["save_path"],
         crop_size_xy = int(config["crop_size_xy"]),
         crop_size_z = int(config["crop_size_z"]),
-        method = config["method"],
+        method = lambda wildcards: wildcards.method,
         raw = lambda wildcards: wildcards.raw
     threads: threads
     shell:
@@ -179,7 +182,7 @@ rule compute_beads:
         threads = threads,
         crop_size_xy = int(config["crop_size_xy"]),
         crop_size_z = int(config["crop_size_z"]),
-        method = config["method"],
+        method = lambda wildcards: wildcards.method,
         raw = lambda wildcards: wildcards.raw
     shell:
         """
