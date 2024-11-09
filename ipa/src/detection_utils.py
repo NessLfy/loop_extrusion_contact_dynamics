@@ -218,15 +218,19 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
         for i,row in df_loc.iterrows():
             df_temp = df_loc[(df_loc.x == row.x)&(df_loc.y == row.y)&(df_loc.z == row.z)]
 
+            if raw:
+                im = raw_im
+            else:
+                im = filtered_image
             if len(df_temp) == 1:
-                detections_refined= tp.refine.refine_com(raw_image = filtered_image[int(row.z),...], image= raw_im[int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,
+                detections_refined= tp.refine.refine_com(raw_image = im[int(row.z),...], image= im[int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,
                 engine='python', shift_thresh=0.6, characterize=False,
                 pos_columns=['y','x'])
                 fitted_2d.append(detections_refined[['x','y']])
             else:
                 print("Multiple detections at the same location", df_temp)
                 df_temp = df_temp.iloc[0:1]
-                detections_refined= tp.refine.refine_com(raw_image = filtered_image[int(row.z),...], image= raw_im[int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,
+                detections_refined= tp.refine.refine_com(raw_image = im[int(row.z),...], image= im[int(row.z),...], radius= [crop_size_xy//2,crop_size_xy//2], coords = df_temp, max_iterations=1,
                 engine='python', shift_thresh=0.6, characterize=False,
                 pos_columns=['y','x'])
                 fitted_2d.append(detections_refined[['x','y']])
@@ -245,9 +249,13 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
 
         df_loc["z_fitted_refined"] = z_s
     
-    elif method == 'com_3d':
+    elif method == 'com3d':
         try:
-            detections_refined= tp.refine.refine_com(raw_image = filtered_image, image= filtered_image, radius= [crop_size_z//2,crop_size_xy//2,crop_size_xy//2], coords = df_loc, max_iterations=10,
+            if raw:
+                im = raw_im
+            else:
+                im = filtered_image
+            detections_refined= tp.refine.refine_com(raw_image = im, image= im, radius= [crop_size_z//2,crop_size_xy//2,crop_size_xy//2], coords = df_loc, max_iterations=10,
             engine='python', shift_thresh=0.5, characterize=False,
             pos_columns=['z','y','x'])
         except ValueError:
@@ -258,7 +266,12 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
         df_loc['z_fitted_refined'] = detections_refined['z'].values
     
     elif method == 'gauss':
-        k = [(raw_im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,raw_im) for i in range(len(pos))]
+        if raw:
+            im = raw_im
+        else:
+            im = filtered_image
+
+        k = [(im,pos[i][1],pos[i][2],pos[i][0],crop_size_xy,crop_size_z,im) for i in range(len(pos))]
         amp_xy,x_f,y_f,sigma_xy,offset_xy,amp_z,z_f,sigma,offset_z = zip(*(starmap(gauss_single_spot_2d_1d,k)))
         df_loc = pd.DataFrame([x,y,z,x_f,y_f,z_f,amp_xy,amp_z,sigma_xy,sigma,offset_xy,offset_z]).T
         df_loc.columns=['x','y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined',"A_xy","A_z","sigma_xy","sigma_z","offset_xy","offset_z"]
