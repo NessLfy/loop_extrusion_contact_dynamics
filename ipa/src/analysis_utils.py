@@ -175,8 +175,8 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
                 track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um','x','y','z']].values
                 track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um','x','y','z']].values
-                snr1[frame] = d1.loc[m[small_m][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
-                snr2[frame] = d2.loc[m[small_m][1],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                snr1[frame] = d1.loc[m[small_m][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
+                snr2[frame] = d2.loc[m[small_m][1],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
             # otherwise we put a gap
             else:
                 track1[frame] = [0,0,0,0,0,0]
@@ -199,9 +199,9 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
                 small_m = np.argmin(np.sqrt(np.sum(np.array(m)[:,2:]**2,axis=1)))
                 track1[frame] = d1.loc[m[small_m][0],['x_um','y_um','z_um','x','y','z']].values
-                snr1[frame] = d1.loc[m[small_m][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                snr1[frame] = d1.loc[m[small_m][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
                 track2[frame] = d2.loc[m[small_m][1],['x_um','y_um','z_um','x','y','z']].values
-                snr2[frame] = d2.loc[m[small_m][1],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                snr2[frame] = d2.loc[m[small_m][1],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
             
             # otherwise we take the closest point to the previous point in the same channel
             else:
@@ -223,9 +223,9 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
                     snr2[frame] = [0]#,0,0,0]
                 else:
                     track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um','x','y','z']].values
-                    snr1[frame] = d1.loc[m1[0][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                    snr1[frame] = d1.loc[m1[0][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
                     track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um','x','y','z']].values
-                    snr2[frame] = d2.loc[m2[0][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                    snr2[frame] = d2.loc[m2[0][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
         
         # if there is only one match bellow the cutoff we check if it is also bellow the cutoff for the same channel and the frame before and take it
         elif len(m) == 1:
@@ -235,21 +235,21 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
             df_temp_2.columns=['x_um','y_um','z_um','x','y','z']
             
             d1 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 0)].reset_index(drop=True)
-            d1 = pd.DataFrame(d1.loc[m[0][0],['x_um','y_um','z_um','x','y','z','snr_tophat']])#,'max_original','mean_back_original','std_back_original']])
+            d1 = pd.DataFrame(d1.loc[m[0][0],['x_um','y_um','z_um','x','y','z','snr_tophat',"sigma_xy","sigma_z"]])#,'max_original','mean_back_original','std_back_original']])
             d1=d1.T
             d1.reset_index(drop=True,inplace=True)
             
             d2 = df[(df.new_label == label)&(df.frame == frame)&(df.channel == 1)].reset_index(drop=True)
-            d2 = pd.DataFrame(d2.loc[m[0][1],['x_um','y_um','z_um','x','y','z','snr_tophat']])#,'max_original','mean_back_original','std_back_original']])
+            d2 = pd.DataFrame(d2.loc[m[0][1],['x_um','y_um','z_um','x','y','z','snr_tophat',"sigma_xy","sigma_z"]])#,'max_original','mean_back_original','std_back_original']])
             d2=d2.T
             d2.reset_index(drop=True,inplace=True)
             
             # check that the previous point is a gap if so we take the new match from the matching between colors
             if (df_temp_1['x_um'].values[0] == 0) or (df_temp_2['x_um'].values[0] == 0):
                 track1[frame] = d1.loc[0,['x_um','y_um','z_um','x','y','z']].values
-                snr1[frame] = d1.loc[0,['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                snr1[frame] = d1.loc[0,['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
                 track2[frame] = d2.loc[0,['x_um','y_um','z_um','x','y','z']].values
-                snr2[frame] = d2.loc[0,['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                snr2[frame] = d2.loc[0,['snr_tophat,"sigma_xy","sigma_z"']]#,'max_original','mean_back_original','std_back_original']].values
             
 
             else:
@@ -267,16 +267,16 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
                     snr2[frame] = [0]#,0,0,0]
                 else:
                     track1[frame] = d1.loc[m1[0][0],['x_um','y_um','z_um','x','y','z']].values
-                    snr1[frame] = d1.loc[m1[0][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values
+                    snr1[frame] = d1.loc[m1[0][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
                     track2[frame] = d2.loc[m2[0][0],['x_um','y_um','z_um','x','y','z']].values 
-                    snr2[frame] = d2.loc[m2[0][0],['snr_tophat']]#,'max_original','mean_back_original','std_back_original']].values       
+                    snr2[frame] = d2.loc[m2[0][0],['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values       
         
         # if there is no match bellow the cutoff we put a gap
         else:
             track1[frame] = [0,0,0,0,0,0]
-            snr1[frame] = [0]#,0,0,0]
+            snr1[frame] = [0,0,0]#,0,0,0]
             track2[frame] = [0,0,0,0,0,0]
-            snr2[frame] = [0]#,0,0,0]
+            snr2[frame] = [0,0,0]#,0,0,0]
     
     coord_zero_1 = np.where(track1[:,0] == 0)[0]
     coord_zero_2 = np.where(track2[:,0] == 0)[0]
@@ -318,7 +318,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
     # Search for the date in the stem
     match = re.search(date_pattern, stem)
 
-    match_raw = re.search(pattern_raw, stem)
+    match_raw = re.search(pattern_raw, stem.lower())
 
     path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() +'_fit_' + match_raw.group() +'_image.pkl')
 
