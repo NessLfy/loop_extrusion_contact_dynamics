@@ -297,78 +297,85 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
     
     return track1, track2, dist_corrected,snr1,snr2
 
-def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,pixel_sizeinit=[0.13,0.13,0.3],raw=False):
+def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,pixel_sizeinit=[0.13,0.13,0.3],raw=False,method='gauss'):
     path_run_folder = Path(path_run_folder)
-    df = pd.read_parquet(path_run_folder)
-    N_frame = np.max(df.frame.unique())
-    # Get the first CSV file path
-    # Construct the path for the labels
-    path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}_fit_{raw}_image', '')
+    try:
+        df = pd.read_parquet(path_run_folder)
+        N_frame = np.max(df.frame.unique())
+        # Get the first CSV file path
+        # Construct the path for the labels
+        path_labels = path_run_folder.parent.with_name('label_image_tracked') / path_run_folder.name.replace('detections','label_image_tracked').replace(f'_cxy_{cxy}_cz_{cz}_method_{method}_fit_{raw}_image', '')
 
-    # Construct the path for the beads
+        # Construct the path for the beads
 
-    # Extract the stem
-    stem = path_run_folder.stem
+        # Extract the stem
+        stem = path_run_folder.stem
 
-    # Define the date pattern (e.g., YYYYMMDD)
-    date_pattern = r'\d{8}'
+        # Define the date pattern (e.g., YYYYMMDD)
+        date_pattern = r'\d{8}'
 
-    pattern_raw = r'(true|false)'
+        pattern_raw = r'(True|False)'
 
-    # Search for the date in the stem
-    match = re.search(date_pattern, stem)
+        # Search for the date in the stem
+        match = re.search(date_pattern, stem)
 
-    match_raw = re.search(pattern_raw, stem.lower())
+        match_raw = re.search(pattern_raw, stem)
 
-    path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() +'_fit_' + match_raw.group() +'_image.pkl')
+        path_beads = path_run_folder.parent.with_name('beads') / ('3d_linear_regression_' + match.group() +f'_method_{method}_fit_' + match_raw.group() +'_image.pkl')
 
-    df_labels = pd.read_parquet(path_labels)
+        df_labels = pd.read_parquet(path_labels)
 
-    df_labels[["centroid-0","centroid-1"]]=df_labels[["centroid-0","centroid-1"]]*pixel_sizeinit[0:2]
-    merged_df = pd.merge(df, df_labels[[ 'frame', 'label', 'new_label']], on=[ 'frame', 'label'], how='left')
+        df_labels[["centroid-0","centroid-1"]]=df_labels[["centroid-0","centroid-1"]]*pixel_sizeinit[0:2]
+        merged_df = pd.merge(df, df_labels[[ 'frame', 'label', 'new_label']], on=[ 'frame', 'label'], how='left')
 
-    df['new_label'] = merged_df['new_label']
-    d = df.groupby(["new_label","channel","frame"]).apply(lambda x: x.loc[x['snr_tophat'].idxmax()])
+        df['new_label'] = merged_df['new_label']
+        d = df.groupby(["new_label","channel","frame"]).apply(lambda x: x.loc[x['snr_tophat'].idxmax()])
 
-    with open(path_beads,'rb') as r:
-        model = pickle.load(r)
+        if method == 'com' or method =='com3d':
+            d['sigma_xy'] = 0
+            d['sigma_z'] = 0
 
-    trajs_1 = []
-    trajs_2 = []
-    distances = []
-    cells = []
-    snr_c1 = []
-    snr_c2 = []
-    N_pixel = []
+        with open(path_beads,'rb') as r:
+            model = pickle.load(r)
 
-    pixel_size = list(pixel_sizeinit)
+        trajs_1 = []
+        trajs_2 = []
+        distances = []
+        cells = []
+        snr_c1 = []
+        snr_c2 = []
+        N_pixel = []
 
-    pixel_size.extend((1,1,1))
+        pixel_size = list(pixel_sizeinit)
 
-    for track in d.new_label.unique():
-        temp_traj_1 = np.zeros((N_frame+1, 6))
-        temp_traj_2 = np.zeros((N_frame+1, 6))
-        snr_c1_temp = np.zeros((N_frame+1,3))
-        snr_c2_temp = np.zeros((N_frame+1,3))
-        N_pixel_temp = np.zeros((N_frame+1,1))
+        pixel_size.extend((1,1,1))
 
-        temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
-        snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
+        for track in d.new_label.unique():
+            temp_traj_1 = np.zeros((N_frame+1, 6))
+            temp_traj_2 = np.zeros((N_frame+1, 6))
+            snr_c1_temp = np.zeros((N_frame+1,3))
+            snr_c2_temp = np.zeros((N_frame+1,3))
+            N_pixel_temp = np.zeros((N_frame+1,1))
 
-        temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
-        snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
+            temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
+            snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
 
-        N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
+            temp_traj_2[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
+            snr_c2_temp[d[(d.new_label == track)&(d.channel == 1)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 1)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
 
-        if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
-            track1, track2,dist,snr1,snr2 = correct_track(temp_traj_1,temp_traj_2,model,df,track,snr_c1_temp,snr_c2_temp,pixel_size[0:3],cutoff)
-            trajs_1.append(track1)
-            trajs_2.append(track2)
-            distances.append(dist)
-            cells.append(track)
-            snr_c1.append(snr1)
-            snr_c2.append(snr2)
-            N_pixel.append(N_pixel_temp)
+            N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
+
+            if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
+                track1, track2,dist,snr1,snr2 = correct_track(temp_traj_1,temp_traj_2,model,df,track,snr_c1_temp,snr_c2_temp,pixel_size[0:3],cutoff)
+                trajs_1.append(track1)
+                trajs_2.append(track2)
+                distances.append(dist)
+                cells.append(track)
+                snr_c1.append(snr1)
+                snr_c2.append(snr2)
+                N_pixel.append(N_pixel_temp)
+    except FileNotFoundError:
+        return [],[],[],[],[],[],[],path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '')
 
     return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '') 
 
