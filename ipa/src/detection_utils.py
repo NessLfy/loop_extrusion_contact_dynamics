@@ -77,7 +77,7 @@ def detections_beads(raw_im: np.ndarray,crop_size_xy:int = 4,crop_size_z:int = 4
     array = set([tuple(i) for i in array])
     z,y,x = zip(*array)
     pos=np.vstack((z,y,x)).T
-    margin=np.array((crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
+    margin=np.array((1,1,1))#(crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
     shape=raw_im.shape
     near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
     pos = pos[~near_edge]
