@@ -249,7 +249,7 @@ def correct_track(track1,track2,model,df,label,snr1,snr2,pixel_size,cutoff=1.0):
                 track1[frame] = d1.loc[0,['x_um','y_um','z_um','x','y','z']].values
                 snr1[frame] = d1.loc[0,['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
                 track2[frame] = d2.loc[0,['x_um','y_um','z_um','x','y','z']].values
-                snr2[frame] = d2.loc[0,['snr_tophat,"sigma_xy","sigma_z"']]#,'max_original','mean_back_original','std_back_original']].values
+                snr2[frame] = d2.loc[0,['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
             
 
             else:
