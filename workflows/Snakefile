@@ -58,6 +58,17 @@ beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_method
 
 bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl'
 
+tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+         crop_sizexy=config["crop_size_xy"],
+         crop_size_z=config["crop_size_z"],
+         path=config["save_path"],
+         raw=config["raw"],
+         method=config["method"],
+         cutoff=config["cutoff"],
+         prop=config["proportion_good_track"])
+
+track = "{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+
 max_threads = os.cpu_count() 
 
 rule all:
@@ -65,7 +76,8 @@ rule all:
         detections,
         labels_tracked,
         plots,
-        beads
+        beads,
+        tracks
 
 rule compute_detections:
     input:
@@ -187,6 +199,21 @@ rule compute_beads:
     shell:
         """
         python -m ipa.scripts.beads --input_dir {input} --output_file {output} --threads {params.threads} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --method {params.method} --raw {params.raw}
+        """
+
+rule compute_tracks:
+    input: detection
+    output: track
+    params:
+        method = lambda wildcards: wildcards.method,
+        cutoff = lambda wildcards: wildcards.cutoff,
+        proportion_good_track = lambda wildcards: wildcards.prop,
+        cxy = int(config["crop_size_xy"]),
+        cz = int(config["crop_size_z"]),
+        raw = lambda wildcards: wildcards.raw
+    shell:
+        """
+        python -m ipa.scripts.compute_tracks --input_file {input} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
         """
 
 EMAIL = config['email']
