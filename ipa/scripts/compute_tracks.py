@@ -8,7 +8,7 @@ import re
 def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,cxy,cz,raw):
 
     # Compute the tracks
-    radial_distances,trajs_c1,trajs_c2,_,snr_1,snr_2,N_pixel,files = process_df(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
+    radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
 
     pattern = r'\d{8}'
 
@@ -19,7 +19,7 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
     pos_c2=[]
     pixel=[]
     dat = []
-
+    labels = []
     for i in range(len(radial_distances)):
         index=np.abs(radial_distances[i][:,0])>0
         
@@ -41,6 +41,8 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
         pos_c2.extend(trajs_c2[i][index])
         pixel.extend(N_pixel[i][index])
         dat.extend([dates]*np.sum(index))
+        labels.extend(labels_to_save[i][index])
+
     try:
         df_temp = np.vstack([x for x in distances_total if len(x)>1])
         pos = np.vstack([x for x in pos_c1 if len(x)>1])
@@ -49,11 +51,12 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
         df['dates'] = dat
         df[['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']]= pos
         df[['x_fitted_refined_c2', 'y_fitted_refined_c2','z_fitted_refined_c2','x_c2', 'y_c2','z_c2']]= pos2
-
+        df[['label','new_label','frame']]= labels
         # Save the output file
 
-        df.to_parquet(output_file, index=False)
+        return df.to_parquet(output_file, index=False)
     except ValueError:
+        print('No tracks found')
         return pd.DataFrame().to_parquet(output_file, index=False)
 
     
@@ -76,9 +79,6 @@ if __name__ == '__main__':
         args.raw = True
     else:
         args.raw = False
-
-    
-
 
     compute_tracks(args.input_file, args.cutoff, args.proportion_good_track, args.method, args.output_file, args.crop_size_xy, args.crop_size_z, args.raw)
 

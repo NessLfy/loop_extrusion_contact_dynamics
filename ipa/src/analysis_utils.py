@@ -341,7 +341,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
         trajs_1 = []
         trajs_2 = []
         distances = []
-        cells = []
+        labels_to_save = []
         snr_c1 = []
         snr_c2 = []
         N_pixel = []
@@ -356,6 +356,7 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
             snr_c1_temp = np.zeros((N_frame+1,3))
             snr_c2_temp = np.zeros((N_frame+1,3))
             N_pixel_temp = np.zeros((N_frame+1,1))
+            labels_temp = np.zeros((N_frame+1,3))
 
             temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']].values*pixel_size
             snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat',"sigma_xy","sigma_z"]]#,'max_original','mean_back_original','std_back_original']].values
@@ -365,19 +366,21 @@ def process_df(path_run_folder,cutoff=0.2,proportion_good_track=1.0,cxy=9,cz=7,p
 
             N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
+            labels_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)] = d[(d.new_label == track)&(d.channel == 0)][['label','new_label','frame']].values
+
             if find_tracks_to_refine(temp_traj_1,temp_traj_2,model,cutoff,proportion_good_track):
                 track1, track2,dist,snr1,snr2 = correct_track(temp_traj_1,temp_traj_2,model,df,track,snr_c1_temp,snr_c2_temp,pixel_size[0:3],cutoff)
                 trajs_1.append(track1)
                 trajs_2.append(track2)
                 distances.append(dist)
-                cells.append(track)
                 snr_c1.append(snr1)
                 snr_c2.append(snr2)
                 N_pixel.append(N_pixel_temp)
+                labels_to_save.append(labels_temp)
     except FileNotFoundError:
         return [],[],[],[],[],[],[],path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '')
 
-    return distances,trajs_1, trajs_2,df_labels[df_labels.new_label.isin(cells)],snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '') 
+    return distances,trajs_1, trajs_2,labels_to_save,snr_c1,snr_c2,N_pixel,path_run_folder.stem.replace('detections_','').replace(f'_cxy_{cxy}_cz_{cz}', '') 
 
 def process_df_1b2(path_run_folder,cutoff=0.3,proportion_good_track=1):
     path_run_folder = Path(path_run_folder)
