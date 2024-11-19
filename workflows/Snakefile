@@ -49,10 +49,12 @@ label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{f
 
 labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
 
-beads_path = Path(config['folder_path']).parent / 'beads' 
+beads_path = Path(config['folder_path']).parent / 'beads/' 
+
+pattern = r'\d{8}'
 
 beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl',
-        date=beads_path.parent.name,
+        date=list(set([re.search(pattern,f.name).group() for f in beads_path.glob('*.nd2')])),
         raw=config['raw'],
         method=config['method'])
 
@@ -69,6 +71,19 @@ tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size
 
 track = "{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
 
+doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+         diameterxy=config["diameterxy"],
+         diameterz=config["diameterz"],
+         path=config["save_path"],
+         crop_sizexy=config["crop_size_xy"],
+         crop_size_z=config["crop_size_z"],
+         raw=config["raw"],
+         method=config["method"],
+         cutoff=config["cutoff"],
+         prop=config["proportion_good_track"])
+
+doublets = "{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+
 max_threads = os.cpu_count() 
 
 rule all:
@@ -76,8 +91,9 @@ rule all:
         detections,
         labels_tracked,
         plots,
-        beads,
-        tracks
+        tracks,
+        doublets_file,
+        beads
 
 rule compute_detections:
     input:
@@ -215,6 +231,20 @@ rule compute_tracks:
         """
         python -m ipa.scripts.compute_tracks --input_file {input} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
         """
+
+rule compute_doublets:
+    input: lambda wildcards: f"{config['folder_path']}{wildcards.filename}.nd2",labels_full,track
+    output: doublets
+    params:
+        diameterxy = lambda wildcards: wildcards.diameterxy,
+        diameterz = lambda wildcards: wildcards.diameterz,
+        threads = config["threads_doublets"],
+    threads: config["threads_doublets"]
+    shell:
+        """
+        python -m ipa.scripts.distance_doublets --image_path {input[0]} --file_label {input[1]} --tracks {input[2]} --output_file {output} --cx {params.diameterxy} --cz {params.diameterz} --threads {params.threads}
+        """
+
 
 EMAIL = config['email']
 
