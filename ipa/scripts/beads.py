@@ -136,6 +136,7 @@ def main():
         with open(output_file,"wb") as f:
             pickle.dump(np.zeros(3),f)
 
+    df.to_parquet(output_file.replace(".pkl",".parquet"))
 
 
 if __name__ == '__main__':
