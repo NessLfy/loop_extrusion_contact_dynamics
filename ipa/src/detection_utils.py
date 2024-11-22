@@ -194,14 +194,14 @@ def max5_detection(raw_im: np.ndarray,filtered_image:np.ndarray,frame: int,chann
 
     # remove duplicates
     pos=np.vstack((z,y,x)).T
-    margin=np.array((crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
-    shape=raw_im.shape
-    near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
-    pos = pos[~near_edge]
-    labs = np.array(labs)[~near_edge]
-    n_pixels = np.array(n_pixels)[~near_edge]
-    snr = np.array(snr)[~near_edge]
-    snr_o = np.array(snr_o)[~near_edge]
+    # margin=np.array((crop_size_z//2,crop_size_xy//2,crop_size_xy//2))
+    # shape=raw_im.shape
+    # near_edge = np.any((pos < margin) | (pos > (shape - margin - 1)), 1)
+    # pos = pos[~near_edge]
+    # labs = np.array(labs)[~near_edge]
+    # n_pixels = np.array(n_pixels)[~near_edge]
+    # snr = np.array(snr)[~near_edge]
+    # snr_o = np.array(snr_o)[~near_edge]
     z,y,x = pos.T
 
     intensity = [raw_im[z,y,x] for (z,y,x) in zip(z,y,x)]

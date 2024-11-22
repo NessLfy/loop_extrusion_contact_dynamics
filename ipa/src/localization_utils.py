@@ -313,6 +313,15 @@ def gauss_single_spot_3d(
 
     '''
 
+    margin=np.array((crop_size_z//2,crop_size//2,crop_size//2))
+    shape=image.shape
+    coords = np.array([c_coord, r_coord, z_coord])
+    near_edge = np.any((coords < margin) | (coords > (shape - margin - 1)), 1)
+
+    if near_edge:
+        print('Near edge')
+        return r_coord,c_coord,z_coord,0,0,0,0,0,0
+    
     start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
     start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
     start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
@@ -360,7 +369,7 @@ def gauss_single_spot_3d(
         sd = np.sqrt(np.diag(pcov))
     except RuntimeError:
         print('Runtime')
-        return 0,0,0,0,0,0,0,0,0
+        return r_coord,c_coord,z_coord,0,0,0,0,0,0
 
     x0 = popt[1] + start_dim2
     y0 = popt[2] + start_dim1
@@ -377,101 +386,7 @@ def gauss_single_spot_3d(
     # If predicted spot is out of the border of the image
     if x0 >= image.shape[2] or y0 >= image.shape[1] or z0 >= image.shape[0]:
         print('Out of border')
-        return 0,0,0,0,0,0,0,0,0
-
-    return x0, y0, z0,A,sigma_xy,sigma_z,offset,error,mesg   #sd_x, sd_y, sd_z,0,0,0,0,0,0
-
-def gauss_single_spot_3d_zhan(
-    image: np.ndarray,
-    c_coord: float,
-    r_coord: float,
-    z_coord: float,
-    crop_size: int,
-    crop_size_z: int,
-) :
-    '''
-    Gaussian prediction on a single crop centred on spot
-
-    Args:
-    image: 3D image
-    c_coord: column coordinate of the spot
-    r_coord: row coordinate of the spot
-    z_coord: z coordinate of the spot
-    crop_size: size of the crop
-    crop_size_z: size of the crop in z
-
-    Returns:
-    x0: x coordinate of the spot
-    y0: y coordinate of the spot
-    z0: z coordinate of the spot
-    sd_x: standard deviation of the x coordinate (sd of the fit)
-    sd_y: standard deviation of the y coordinate (sd of the fit)
-    sd_z: standard deviation of the z coordinate (sd of the fit)
-
-    '''
-    EPS=1e-4
-    start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
-    start_dim2, end_dim2 = find_start_end(r_coord, image.shape[2], crop_size)
-    start_dim3, end_dim3 = find_start_end(z_coord, image.shape[0], crop_size_z)
-
-    crop = image[start_dim3:end_dim3,start_dim1:end_dim1, start_dim2:end_dim2]
-
-    x = np.arange(0, crop.shape[2], 1)
-    y = np.arange(0, crop.shape[1], 1)
-    z = np.arange(0, crop.shape[0], 1)
-    zz,yy,xx = np.meshgrid(z,y,x,indexing="ij")
-
-    # Guess intial parameters
-    x0 = int(crop.shape[2] // 2)  # Center of gaussian, middle of the crop
-    y0 = int(crop.shape[1] // 2)  # Center of gaussian, middle of the crop
-    z0 = int(crop.shape[0] // 2)  # Center of gaussian, middle of the crop
-    
-    sigma = max(*crop.shape[:-1]) * 0.1  # SD of gaussian, 10% of the crop
-    sigmaz = crop.shape[-1] * 0.1  # SD of gaussian, 10% of the crop
-    
-    amplitude_max = max(np.max(crop)/2,np.min(crop))
-    initial_guess = [amplitude_max, x0, y0, z0, sigma, sigmaz, 0]
-    # Parameter search space bounds
-    lower = [np.min(crop), 0, 0, 0, 0, 0,-np.inf]
-    upper = [np.max(crop)+EPS,
-        crop_size,
-        crop_size,
-        crop_size_z,
-        np.inf,
-        np.inf,
-        np.inf,
-    ]
-    bounds = [lower, upper]
-    try:
-        popt, pcov,info_dict,mesg,ier = opt.curve_fit(
-            gauss_3d,
-            (xx.ravel(), yy.ravel(), zz.ravel()),
-            crop.ravel(),
-            p0=initial_guess,
-            bounds=bounds,
-            full_output=True
-        )
-        sd = np.sqrt(np.diag(pcov))
-    except RuntimeError:
-        print('Runtime')
-        return 0,0,0,0,0,0,0,0,0
-
-    x0 = popt[1] + start_dim2
-    y0 = popt[2] + start_dim1
-    z0 = popt[3] + start_dim3
-    A=popt[0]
-    sigma_xy=popt[4]
-    sigma_z=popt[5]
-    offset=popt[6]
-    error=np.sum(np.abs(info_dict["fvec"])/crop.ravel())
-    sd_x = sd[1]
-    sd_y = sd[2]
-    sd_z = sd[3]
-
-    # If predicted spot is out of the border of the image
-    if x0 >= image.shape[1] or y0 >= image.shape[2] or z0 >= image.shape[0]:
-        print('Out of border')
-        return 0,0,0,0,0,0,0,0,0
+        return r_coord,c_coord,z_coord,0,0,0,0,0,0
 
     return x0, y0, z0,A,sigma_xy,sigma_z,offset,error,mesg   #sd_x, sd_y, sd_z,0,0,0,0,0,0
 
