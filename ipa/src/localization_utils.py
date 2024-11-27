@@ -313,11 +313,11 @@ def gauss_single_spot_3d(
 
     '''
 
-    margin=np.array((crop_size_z//2,crop_size//2,crop_size//2))
+    margin=np.array((1,1,1))
     shape=image.shape
-    coords = np.array([c_coord, r_coord, z_coord])
+    coords = np.vstack((z_coord, r_coord, c_coord)).T
     near_edge = np.any((coords < margin) | (coords > (shape - margin - 1)), 1)
-
+ 
     if near_edge:
         print('Near edge')
         return r_coord,c_coord,z_coord,0,0,0,0,0,0
