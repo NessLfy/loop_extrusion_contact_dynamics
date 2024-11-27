@@ -70,6 +70,8 @@ def matching_beads(args):
                 detections_c1.dropna(inplace=True, axis=0)
                 detections_c1["frame"]=[frame]*len(detections_c1)
                 detections_c1["filename"]=[file_name_beads]*len(detections_c1)
+                detections_c1['filename'] = detections_c1['filename'].astype(str)
+
                 detections_matched.append(detections_c1)
     
     if(len(detections_matched)>0):
