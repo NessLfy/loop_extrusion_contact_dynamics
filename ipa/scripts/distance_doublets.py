@@ -13,7 +13,7 @@ import argparse
 from functools import lru_cache
 from tqdm import tqdm
 import dask
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 
 def create_footprint(d_xy,d_z):
@@ -61,6 +61,8 @@ def process_label(args):
 
     return labels_path, frame, id_track, new_label, d_temp_c1, d_temp_c1_non_max, channel
 
+def get_result(future):
+    return future.result()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -108,9 +110,9 @@ def main():
     tasks = [(args.file_label, int(id), int(frame), new_label, image_path , footprint, int(channel)) for (id, frame, new_label) in track_id for channel in range(2)]
 
     # Use ThreadPoolExecutor to process the tasks
-    with ThreadPoolExecutor(max_workers=threads) as executor:
+    with ProcessPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(process_label, task) for task in tasks]
-        distances = list(tqdm(executor.map(lambda f: f.result(), futures), total=len(tasks)))
+        distances = list(tqdm(map(get_result, futures), total=len(tasks)))
 
 
     dfs=[]
