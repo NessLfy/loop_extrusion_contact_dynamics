@@ -203,6 +203,7 @@ rule sanity_check:
             plt.close()
         plt.savefig(output[0],dpi=300)
 
+
 rule compute_beads:
     input: beads_path
     output: bead
@@ -212,6 +213,8 @@ rule compute_beads:
         crop_size_z = int(config["crop_size_z"]),
         method = lambda wildcards: wildcards.method,
         raw = lambda wildcards: wildcards.raw
+    priority:
+        100
     shell:
         """
         python -m ipa.scripts.beads --input_dir {input} --output_file {output} --threads {params.threads} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --method {params.method} --raw {params.raw}
@@ -220,6 +223,8 @@ rule compute_beads:
 rule compute_tracks:
     input: detection
     output: track
+    priority:
+        -10
     params:
         method = lambda wildcards: wildcards.method,
         cutoff = lambda wildcards: wildcards.cutoff,
