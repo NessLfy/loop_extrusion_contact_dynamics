@@ -221,7 +221,7 @@ rule compute_beads:
         """
 
 rule compute_tracks:
-    input: detection
+    input: detection,label_tracked
     output: track
     priority:
         -10
@@ -234,7 +234,7 @@ rule compute_tracks:
         raw = lambda wildcards: wildcards.raw
     shell:
         """
-        python -m ipa.scripts.compute_tracks --input_file {input} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
+        python -m ipa.scripts.compute_tracks --input_file {input[0]} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
         """
 
 rule compute_doublets:
