@@ -15,6 +15,7 @@ import dask
 from skimage.morphology import disk,white_tophat
 from pathlib import Path
 import re
+dask.config.set(scheduler='threads', num_workers=1)
 
 # Define names of the input and output files
 threads = int(config["threads"])
@@ -47,7 +48,7 @@ labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tr
 
 label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.parquet"
 
-labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
+labels_full = ancient(directory(config['save_path']+"/labels/label_image_full_{filename}.zarr"))
 
 beads_path = Path(config['folder_path']).parent / 'beads/' 
 
