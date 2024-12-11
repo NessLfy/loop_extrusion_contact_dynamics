@@ -3,13 +3,14 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from analysis_utils import process_df
+from create_tracks_no_beads import process_df_no_beads
 import re
 
 def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,cxy,cz,raw):
 
     # Compute the tracks
-    radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
-
+    radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df_no_beads(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
+    
     pattern = r'\d{8}'
 
     dates = re.search(pattern, files).group(0)
@@ -42,24 +43,22 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
         pixel.extend(N_pixel[i][index])
         dat.extend([dates]*np.sum(index))
         labels.extend(labels_to_save[i][index])
-
+    
     try:
         df_temp = np.vstack([x for x in distances_total if len(x)>1])
         pos = np.vstack([x for x in pos_c1 if len(x)>1])
+        print(len(pos[0]))
         pos2 = np.vstack([x for x in pos_c2 if len(x)>1])
         df = pd.DataFrame(df_temp,columns=['snr_1','sigma1x','sigmaz','snr_2','sigma2x','sigma2z','dx','dy','dz'])
         df['dates'] = dat
-        df[['x_fitted_refined', 'y_fitted_refined','z_fitted_refined','x', 'y','z']]= pos
-        df[['x_fitted_refined_c2', 'y_fitted_refined_c2','z_fitted_refined_c2','x_c2', 'y_c2','z_c2']]= pos2
+        df[['x', 'y','z','x_fitted_refined', 'y_fitted_refined','z_fitted_refined']]= pos
+        df[['x', 'y','z','x_fitted_refined_c2', 'y_fitted_refined_c2','z_fitted_refined_c2']]= pos2
         df[['label','new_label','frame']]= labels
         # Save the output file
-
         return df.to_parquet(output_file, index=False)
     except ValueError:
         print('No tracks found')
         return pd.DataFrame().to_parquet(output_file, index=False)
-
-    
 
 
 if __name__ == '__main__':
