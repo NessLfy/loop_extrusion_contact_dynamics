@@ -240,3 +240,5 @@ workflows/Snakefile_cells_pia_movies
 # pixi environments
 .pixi
 *.egg-info
+
+pyproject.toml
