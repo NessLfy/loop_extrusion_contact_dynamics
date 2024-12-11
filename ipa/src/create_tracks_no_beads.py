@@ -125,9 +125,9 @@ def correct_track_no_beads(track1,track2,df,label,snr1,snr2,pixel_size,cutoff=1.
                         snr2[i+1] = [0,0,0]
     distances = np.array(track1 - track2)[:,3:6]
     
-    return track1[:,3:], track2[:,3:], distances,snr1,snr2
+    return track1[:,:], track2[:,:], distances,snr1,snr2
 
-def process_df_no_beads(path_run_folder,cutoff=1.5,proportion_good_track=1.0,cxy=9,cz=7,pixel_sizeinit=[0.13,0.13,0.3],raw=False,method='gauss',cutoff_single_channel=0.5,frame_to_cut=10):
+def process_df_no_beads(path_run_folder,cutoff=1.5,proportion_good_track=1.0,cxy=9,cz=7,pixel_sizeinit=[0.13,0.13,0.3],raw=False,method='gauss',cutoff_single_channel=1,frame_to_cut=10):
     path_run_folder = Path(path_run_folder)
     try:
         df = pd.read_parquet(path_run_folder)
@@ -169,7 +169,7 @@ def process_df_no_beads(path_run_folder,cutoff=1.5,proportion_good_track=1.0,cxy
             snr_c1_temp = np.zeros((N_frame+1-frame_to_cut,3))
             snr_c2_temp = np.zeros((N_frame+1-frame_to_cut,3))
             N_pixel_temp = np.zeros((N_frame+1-frame_to_cut,1))
-            labels_to_save = np.zeros((N_frame+1-frame_to_cut,2))
+            labels_to_save = np.zeros((N_frame+1-frame_to_cut,3))
 
             temp_traj_1[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)-frame_to_cut] = d[(d.new_label == track)&(d.channel == 0)][['x', 'y','z','x_fitted_refined','y_fitted_refined','z_fitted_refined']].values*pixel_size
             snr_c1_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)-frame_to_cut] = d[(d.new_label == track)&(d.channel == 0)][['snr_tophat',"sigma_xy","sigma_z"]]
@@ -179,7 +179,7 @@ def process_df_no_beads(path_run_folder,cutoff=1.5,proportion_good_track=1.0,cxy
 
             N_pixel_temp[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)-frame_to_cut] = d[(d.new_label == track)&(d.channel == 0)][['pixel_sum']].values
 
-            labels_to_save[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)-frame_to_cut] = d[(d.new_label == track)&(d.channel == 0)][['label','new_label']].values
+            labels_to_save[d[(d.new_label == track)&(d.channel == 0)]['frame'].values.astype(int)-frame_to_cut] = d[(d.new_label == track)&(d.channel == 0)][['label','new_label','frame']].values
             
             if find_tracks_to_refine_no_beads(temp_traj_1,temp_traj_2,cutoff,proportion_good_track,cutoff_single_channel):
                 track1, track2,dist,snr1,snr2 = correct_track_no_beads(temp_traj_1,temp_traj_2,df,track,snr_c1_temp,snr_c2_temp,pixel_size[0:3],cutoff,cutoff_single_channel)
