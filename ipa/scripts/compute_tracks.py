@@ -2,10 +2,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
-<<<<<<< HEAD
 from analysis_utils import process_df
-=======
->>>>>>> 23a9f7447a39fc8b26ef63de828bdf95784621bd
 from create_tracks_no_beads import process_df_no_beads
 import re
 
