@@ -8,13 +8,12 @@ import nd2
 from skimage.morphology import disk
 import zarr
 from scipy.ndimage import maximum_filter
-import re
 import argparse
-from functools import lru_cache
 from tqdm import tqdm
 import dask
 from concurrent.futures import ProcessPoolExecutor
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def create_footprint(d_xy,d_z):
     footprint=np.zeros((d_z,disk(d_xy//2).shape[0],disk(d_xy//2).shape[0]))
