@@ -73,6 +73,7 @@ def matching_beads(args):
                 detections_c1["frame"]=[frame]*len(detections_c1)
                 detections_c1["filename"]=[file_name_beads]*len(detections_c1)
                 detections_c1['filename'] = detections_c1['filename'].astype(str)
+                detections_c1['msg'] = detections_c1['msg'].astype(str)
 
                 detections_matched.append(detections_c1)
     
@@ -119,7 +120,6 @@ def main():
     df = pd.concat(results, axis=0)
 
     df.reset_index(inplace=True,drop=True)  
-    print(df.head())
 
     if(len(df)>0):
         Y=df[["dx","dy","dz"]].values
