@@ -1,7 +1,5 @@
 import pandas as pd
 import numpy as np
-import pickle
-from scipy.spatial import distance_matrix
 from correction_utils import assign_closest
 from pathlib import Path
 import re
