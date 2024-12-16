@@ -10,7 +10,7 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
 
     # Compute the tracks
     radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df_no_beads(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
-    
+
     pattern = r'\d{8}'
 
     dates = re.search(pattern, files).group(0)
@@ -56,7 +56,8 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
         df[['label','new_label','frame']]= labels
         # Save the output file
         return df.to_parquet(output_file, index=False)
-    except ValueError:
+    except ValueError as e:
+        print(e)
         print('No tracks found')
         return pd.DataFrame().to_parquet(output_file, index=False)
 

@@ -10,6 +10,8 @@ import detection_utils as det
 import correction_utils as cor
 import argparse
 from pathlib import Path
+import dask
+dask.config.set(scheduler='threads', num_workers=1)
 
 
 def matching_beads(args):

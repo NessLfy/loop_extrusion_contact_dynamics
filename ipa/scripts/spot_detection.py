@@ -10,9 +10,11 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import nd2
 from pathlib import Path
+import dask
+
 
 # function to load and save the data
-
+dask.config.set(scheduler='threads', num_workers=1)
 def processing(input_path, output_file_path, frame, channel, labels, crop_xy, crop_z,method,raw):
     """
     Function to process the input data and save the output to a file
