@@ -242,3 +242,5 @@ workflows/Snakefile_cells_pia_movies
 *.egg-info
 
 pyproject.toml
+cleanup.sh
+files_to_cleanup.txt
