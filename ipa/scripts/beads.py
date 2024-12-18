@@ -11,6 +11,7 @@ import correction_utils as cor
 import argparse
 from pathlib import Path
 import dask
+import re
 dask.config.set(scheduler='threads', num_workers=1)
 
 
@@ -101,6 +102,12 @@ def main():
     input_path = Path(args.input_dir)
 
     list_files = list(input_path.glob("*.nd2"))
+
+    pattern = r'\d{8}'
+
+    date = re.search(pattern, args.output_file).group()
+
+    list_files = [x for x in list_files if date in x.name]
 
     output_file = args.output_file
     threads = args.threads
