@@ -6,7 +6,7 @@ import trackpy as tp
 from scipy.ndimage import maximum_filter
 from skimage.morphology import disk
 
-def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
+def process_labels(l:np.int32,labels:np.ndarray,raw_im:np.ndarray,max_filter_image: np.ndarray, filtered_image: np.ndarray):
     '''
     Function to process each individual label
 
@@ -45,8 +45,8 @@ def process_labels(l,labels,raw_im,max_filter_image,filtered_image):
     back_d = np.mean(raw_im_masked_[raw_im_masked_>0])
     back = np.mean(filtered_image_masked[filtered_image_masked>0])
 
-    snr_o = [i/back_d for i in intensity_o]
-    snr  = [i/back for i in intensity]
+    snr_o = intensity_o / back_d
+    snr = intensity / back
 
     max_coords_2 = [np.unravel_index(f, raw_im_masked_.shape) for f in flat_index]
 
