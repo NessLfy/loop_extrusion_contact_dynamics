@@ -185,7 +185,7 @@ def max_filter(raw_im):
     This function performs a maximum filter on the image using a ball of radius 7 as footprint
     '''
 
-    footprint=ball(7)
+    footprint=create_footprint(3,3)#ball(7)
     max_filter=maximum_filter(raw_im,footprint=footprint)
 
     return max_filter
@@ -204,6 +204,12 @@ def format(im):
     '''
     im = white_tophat(lowpass(im,1),footprint=np.expand_dims(disk(2),axis=0))
     return im
+
+def create_footprint(d_xy,d_z):
+    footprint=np.zeros((d_z,disk(d_xy//2).shape[0],disk(d_xy//2).shape[0]))
+    for i in range(len(footprint)):
+        footprint[i]=disk(d_xy//2)
+    return footprint
 
 def format_gaussian(im):
     im = lowpass(im,1)
