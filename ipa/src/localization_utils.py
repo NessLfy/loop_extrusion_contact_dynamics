@@ -5,6 +5,7 @@ from skimage.transform import resize
 from skimage.morphology import ball
 import warnings
 warnings.filterwarnings("ignore")
+from numba import jit
 
 # Gaussian fitting functions (LSQ)
 
@@ -41,7 +42,8 @@ def gauss_2d_anisotropic(xy:tuple, amplitude, x0, y0, sigma_x,sigma_y, offset):
     )
     return gauss
 
-def gauss_3d(xyz, amplitude, x0, y0, z0, sigma_xy, sigma_z, offset):
+@jit(nopython=True)
+def gauss_3d(xyz:tuple, amplitude:float, x0:float, y0:float, z0:float, sigma_xy:float, sigma_z:float, offset:float):
     """3D gaussian."""
     x, y, z = xyz
     x0 = float(x0)
@@ -57,7 +59,8 @@ def gauss_3d(xyz, amplitude, x0, y0, z0, sigma_xy, sigma_z, offset):
     )
     return gauss
 
-def find_start_end(coord, img_size, crop_size):
+@jit(nopython=True)
+def find_start_end(coord:tuple, img_size:int, crop_size:int):
     '''
     Find the start and end coordinates of the crop given the spot coordinate
 
@@ -71,7 +74,8 @@ def find_start_end(coord, img_size, crop_size):
     end_dim: end coordinate of the crop
 
     '''
-    start_dim = np.max([int(np.round(coord - crop_size // 2)), 0])
+    # start_dim = np.max([int(np.round(coord - crop_size // 2)), 0])
+    start_dim = max(int(round(coord - crop_size / 2)), 0)
     if start_dim < img_size - crop_size:
         end_dim = start_dim + crop_size
     else:
@@ -319,7 +323,7 @@ def gauss_single_spot_3d(
     near_edge = np.any((coords < margin) | (coords > (shape - margin - 1)), 1)
  
     if near_edge:
-        print('Near edge')
+        #print('Near edge')
         return r_coord,c_coord,z_coord,0,0,0,0,0,0
     
     start_dim1, end_dim1 = find_start_end(c_coord, image.shape[1], crop_size)
@@ -385,7 +389,7 @@ def gauss_single_spot_3d(
 
     # If predicted spot is out of the border of the image
     if x0 >= image.shape[2] or y0 >= image.shape[1] or z0 >= image.shape[0]:
-        print('Out of border')
+        #print('Out of border')
         return r_coord,c_coord,z_coord,0,0,0,0,0,0
 
     return x0, y0, z0,A,sigma_xy,sigma_z,offset,error,mesg   #sd_x, sd_y, sd_z,0,0,0,0,0,0
