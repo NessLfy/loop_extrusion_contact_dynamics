@@ -72,9 +72,7 @@ tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size
 
 track = "{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
 
-doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
-         diameterxy=config["diameterxy"],
-         diameterz=config["diameterz"],
+doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
          path=config["save_path"],
          crop_sizexy=config["crop_size_xy"],
          crop_size_z=config["crop_size_z"],
@@ -83,7 +81,7 @@ doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_
          cutoff=config["cutoff"],
          prop=config["proportion_good_track"])
 
-doublets = "{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+doublets = "{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
 
 max_threads = os.cpu_count() 
 
@@ -94,7 +92,7 @@ rule all:
         plots,
         tracks,
         doublets_file,
-        beads
+        # beads
 
 rule compute_detections:
     input:
@@ -239,16 +237,11 @@ rule compute_tracks:
         """
 
 rule compute_doublets:
-    input: lambda wildcards: f"{config['folder_path']}{wildcards.filename}.nd2",labels_full,track
+    input: detection
     output: doublets
-    params:
-        diameterxy = lambda wildcards: wildcards.diameterxy,
-        diameterz = lambda wildcards: wildcards.diameterz,
-        threads = config["threads_doublets"],
-    threads: config["threads_doublets"]
     shell:
         """
-        python -m ipa.scripts.distance_doublets --image_path {input[0]} --file_label {input[1]} --tracks {input[2]} --output_file {output} --cx {params.diameterxy} --cz {params.diameterz} --threads {params.threads}
+        python -m ipa.scripts.distance_doublets --detections {input[0]} --output_file {output}
         """
 
 
