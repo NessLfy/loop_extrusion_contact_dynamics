@@ -3,7 +3,7 @@ import pandas as pd
 from multiprocessing import Pool,Lock
 import dask.array as da
 from detection_utils import max5_detection
-from preprocessing_utils import max_filter,format,format_gaussian
+from preprocessing_utils import max_filter,format
 import argparse
 import tqdm
 import os
