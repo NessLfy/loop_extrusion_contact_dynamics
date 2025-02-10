@@ -1,15 +1,11 @@
 <!-- start abstract -->
 # Localization_Precision_Estimation
-![](https://picsum.photos/id/223/800/600)
 
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod
-tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At
-vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren,
-no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet,
-consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et
-dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo
-duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est
-Lorem ipsum dolor sit amet.
+![alt text](image/illustration_data.png)
+
+This is a repository to analyze two color contact dynamics and estimate the localization precision from live cell imaging data
+
+
 <!-- end abstract -->
 
 ## Repository Overview

@@ -5,7 +5,7 @@ import nd2
 import glob
 from datetime import datetime
 import os
-from snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete,predict_stardist
+from snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete
 from tqdm import tqdm
 from skimage.measure import regionprops_table
 import dask.array as da
@@ -13,32 +13,75 @@ from zarr_tools import convert
 import matplotlib.pyplot as plt
 import dask 
 from skimage.morphology import disk,white_tophat
+from pathlib import Path
+import re
+dask.config.set(scheduler='threads', num_workers=1)
 
 # Define names of the input and output files
 threads = int(config["threads"])
 
 FILENAME = [x.split('/')[-1].replace(".nd2", "") for x in glob.glob(f"{config['folder_path']}/*.nd2")]
-images = expand("{folder_path}/{filename}.nd2", folder_path=config['folder_path'], filename="{filename}")
 
-plots = expand("{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_sanity_check.png",filename=FILENAME,path=config["save_path"], crop_sizexy=config["crop_size_xy"], crop_size_z=config["crop_size_z"])
+plots = expand("{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_sanity_check.png", 
+        filename=FILENAME,
+        path=config["save_path"], 
+        crop_sizexy=config["crop_size_xy"], 
+        crop_size_z=config["crop_size_z"],
+        raw = config["raw"],
+        method = config["method"])
 
-plot = "{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_sanity_check.png"
+plot = "{path}/plots/{filename}/{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_sanity_check.png"
 
-detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv"
+detection = "{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image.parquet"
 
-detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}.csv", filename=FILENAME,
+detections = expand("{path}/detections/detections_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image.parquet", filename=FILENAME,
          crop_sizexy=config["crop_size_xy"],
          crop_size_z=config["crop_size_z"],
-         path=config["save_path"])
+         path=config["save_path"],
+         raw=config["raw"],
+         method=config["method"])
 
 
 labels = config["save_path"]+"/labels/label_image_{filename}.zarr"
 
-labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv", filename=FILENAME)
+labels_tracked = expand(config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.parquet", filename=FILENAME)
 
-label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.csv"
+label_tracked = config['save_path']+"/label_image_tracked/label_image_tracked_{filename}.parquet"
 
-labels_full = directory(config['save_path']+"/labels/label_image_full_{filename}.zarr")
+labels_full = ancient(directory(config['save_path']+"/labels/label_image_full_{filename}.zarr"))
+
+beads_path = Path(config['folder_path']).parent / 'beads/' 
+
+pattern = r'\d{8}'
+
+beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl',
+        date=list(set([re.search(pattern,f.name).group() for f in beads_path.glob('*.nd2')])),
+        raw=config['raw'],
+        method=config['method'])
+
+bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl'
+
+tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+         crop_sizexy=config["crop_size_xy"],
+         crop_size_z=config["crop_size_z"],
+         path=config["save_path"],
+         raw=config["raw"],
+         method=config["method"],
+         cutoff=config["cutoff"],
+         prop=config["proportion_good_track"])
+
+track = "{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+
+doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+         path=config["save_path"],
+         crop_sizexy=config["crop_size_xy"],
+         crop_size_z=config["crop_size_z"],
+         raw=config["raw"],
+         method=config["method"],
+         cutoff=config["cutoff"],
+         prop=config["proportion_good_track"])
+
+doublets = "{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
 
 max_threads = os.cpu_count() 
 
@@ -46,7 +89,10 @@ rule all:
     input:
         detections,
         labels_tracked,
-        plots
+        plots,
+        tracks,
+        doublets_file,
+        # beads
 
 rule compute_detections:
     input:
@@ -58,15 +104,17 @@ rule compute_detections:
         log_filename = lambda wildcards: f"{wildcards.filename}_cxy_{wildcards.crop_sizexy}_cz_{wildcards.crop_size_z}",
         log_path = config["save_path"],
         crop_size_xy = int(config["crop_size_xy"]),
-        crop_size_z = int(config["crop_size_z"])
+        crop_size_z = int(config["crop_size_z"]),
+        method = lambda wildcards: wildcards.method,
+        raw = lambda wildcards: wildcards.raw
     threads: threads
     shell:
         """
-        python -m ipa.scripts.spot_detection --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads}
+        python -m ipa.scripts.spot_detection --input_image {input[0]} --output_file {output} --labels {input[1]} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --threads {threads} --method {params.method} --raw {params.raw}
         """
 
 rule compute_labels_full:
-    input: images
+    input: lambda wildcards: f"{config['folder_path']}{wildcards.filename}.nd2"
     output: labels_full
     params: 
         lo = lambda wildcards: create_logger_format(config['save_path'], wildcards)
@@ -79,7 +127,7 @@ rule compute_labels_full:
         if len(im_big.shape) == 5:
             im = im_big[:,:,1,...]
         else:
-            im = im_big.reshape(im_big.shape[0]//21,21,2,im_big.shape[-2],im_big.shape[-1])[:,:,1,...]
+            im = im_big.reshape(im_big.shape[0]//15,15,2,im_big.shape[-2],im_big.shape[-1])[:,:,1,...]
         # im = im_big 
         #predict labels
         params.lo.info(f"Loaded image {input[0]} for labels computation")
@@ -115,7 +163,7 @@ rule sanity_check:
         im = nd2.imread(input[0],dask=True)
 
         if len(im.shape) != 5:
-            im = im.reshape(im.shape[0]//21,21,2,im.shape[-2],im.shape[-1])
+            im = im.reshape(im.shape[0]//15,15,2,im.shape[-2],im.shape[-1])
 
         
         df = pd.read_parquet(input[1])
@@ -153,6 +201,49 @@ rule sanity_check:
             plt.savefig(output[0].strip('.png')+'_frame_'+str(i)+'.png',dpi=300)
             plt.close()
         plt.savefig(output[0],dpi=300)
+
+
+rule compute_beads:
+    input: beads_path
+    output: bead
+    params:
+        threads = threads,
+        crop_size_xy = int(config["crop_size_xy"]),
+        crop_size_z = int(config["crop_size_z"]),
+        method = lambda wildcards: wildcards.method,
+        raw = lambda wildcards: wildcards.raw
+    priority:
+        100
+    shell:
+        """
+        python -m ipa.scripts.beads --input_dir {input} --output_file {output} --threads {params.threads} --crop_size_xy {params.crop_size_xy} --crop_size_z {params.crop_size_z} --method {params.method} --raw {params.raw}
+        """
+
+rule compute_tracks:
+    input: detection,label_tracked
+    output: track
+    priority:
+        -10
+    params:
+        method = lambda wildcards: wildcards.method,
+        cutoff = lambda wildcards: wildcards.cutoff,
+        proportion_good_track = lambda wildcards: wildcards.prop,
+        cxy = int(config["crop_size_xy"]),
+        cz = int(config["crop_size_z"]),
+        raw = lambda wildcards: wildcards.raw
+    shell:
+        """
+        python -m ipa.scripts.compute_tracks --input_file {input[0]} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
+        """
+
+rule compute_doublets:
+    input: detection
+    output: doublets
+    shell:
+        """
+        python -m ipa.scripts.distance_doublets --detections {input[0]} --output_file {output}
+        """
+
 
 EMAIL = config['email']
 
