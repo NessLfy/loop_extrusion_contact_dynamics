@@ -104,7 +104,7 @@ def predict_stardist_complete(im:np.array,size:tuple = (976,976))->np.array:
         images_resized = im
     # Predict
     labels_resized, _ = zip(*[
-            model.predict_instances(normalize(images_resized[frame, ...])) for frame in tqdm(range(images_resized.shape[0]))])
+            model.predict_instances(normalize(images_resized[frame, ...])) for frame in tqdm(range(images_resized.shape[0]),position=0, leave=True)])
     labels_resized = np.asarray(labels_resized)
 
     # Resize back the labels
