@@ -64,6 +64,9 @@ rule compute_labels_full:
         im_big = nd2.imread(input[0],dask=True)
 
         if len(im_big.shape) != 4:
+            first_dim = im_big.shape[0]
+            first_dim_new = (first_dim // 15) * 15
+            im_big = im_big[:first_dim_new]
             im_big = im_big.reshape(im_big.shape[0]//15,15,im_big.shape[1],im_big.shape[2])
         #predict labels
         im = np.max(im_big,axis=1)

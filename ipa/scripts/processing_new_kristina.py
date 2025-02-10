@@ -159,7 +159,10 @@ def processing(input_path, output_file_path, frame, labels, crop_xy, crop_z):
     im = nd2.imread(input_path, dask=True)
 
     if len(im.shape) != 4:
-        im = im.reshape(im.shape[0]//12,12,im.shape[1],im.shape[2])
+        first_dim = im.shape[0]
+        first_dim_new = (first_dim // 15) * 15
+        im = im[:first_dim_new]
+        im = im.reshape(im.shape[0]//15,15,im.shape[1],im.shape[2])
 
     labels = da.from_zarr(labels, component='0/')
 
@@ -225,10 +228,17 @@ def main():
     
     labels = args.labels
 
+    if len(im.shape) != 4:
+        first_dim = im.shape[0]
+        first_dim_new = (first_dim // 15) * 15
+        im = im[:first_dim_new]
+        im = im.reshape(im.shape[0]//15,15,im.shape[1],im.shape[2])
+
+
     n_frames = im.shape[0]
 
-    if n_frames !=857:
-        n_frames = 857
+    #if n_frames !=280:
+    #   n_frames = 0
 
     tasks = [
     (input_path,f"{output_path}_{frame}.csv", frame, labels, args.crop_size_xy, args.crop_size_z)
@@ -251,7 +261,7 @@ def main():
     for file in files_to_process:
         os.remove(file)
     
-    df_final.to_csv(output_path+'.csv', index=False)
+    df_final.to_csv(output_path +'.csv', index=False)
 
 if __name__ == '__main__':
     main()
