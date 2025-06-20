@@ -6,10 +6,10 @@ from analysis_utils import process_df
 from create_tracks_no_beads import process_df_no_beads
 import re
 
-def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,cxy,cz,raw):
+def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,cxy,cz,raw,pixel_sizeinit):
 
     # Compute the tracks
-    radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df_no_beads(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw)
+    radial_distances,trajs_c1,trajs_c2,labels_to_save,snr_1,snr_2,N_pixel,files = process_df_no_beads(input_file,cutoff=cutoff,proportion_good_track=proportion_good_track,method=method,cxy=cxy,cz=cz,raw=raw,pixel_sizeinit=pixel_sizeinit)
 
     pattern = r'\d{8}'
 
@@ -26,12 +26,12 @@ def compute_tracks(input_file,cutoff,proportion_good_track,method ,output_file,c
         
         data_to_append=np.zeros((np.sum(index),9))
         data_to_append[:,0]=snr_1[i][index,0].flatten()
-        data_to_append[:,1]=snr_1[i][index,1].flatten() * 0.13
-        data_to_append[:,2]=snr_1[i][index,2].flatten() * 0.3
+        data_to_append[:,1]=snr_1[i][index,1].flatten() * pixel_sizeinit[0]
+        data_to_append[:,2]=snr_1[i][index,2].flatten() * pixel_sizeinit[-1]
         
         data_to_append[:,3]=snr_2[i][index,0].flatten()
-        data_to_append[:,4]=snr_2[i][index,1].flatten()* 0.13
-        data_to_append[:,5]=snr_2[i][index,2].flatten()* 0.3
+        data_to_append[:,4]=snr_2[i][index,1].flatten()* pixel_sizeinit[0]
+        data_to_append[:,5]=snr_2[i][index,2].flatten()* pixel_sizeinit[-1]
         
         data_to_append[:,6]=radial_distances[i][index,0]
         data_to_append[:,7]=radial_distances[i][index,1]
@@ -72,6 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--crop_size_xy', type=int, help='The cxy')
     parser.add_argument('--crop_size_z', type=int, help='The cz')
     parser.add_argument('--raw', type=bool, help='The raw')
+    parser.add_argument('--pixel_sizeinit', type=float, nargs='+', help='The pixel size in x,y,z')
 
     args = parser.parse_args()
 
@@ -80,5 +81,5 @@ if __name__ == '__main__':
     else:
         args.raw = False
 
-    compute_tracks(args.input_file, args.cutoff, args.proportion_good_track, args.method, args.output_file, args.crop_size_xy, args.crop_size_z, args.raw)
+    compute_tracks(args.input_file, args.cutoff, args.proportion_good_track, args.method, args.output_file, args.crop_size_xy, args.crop_size_z, args.raw,args.pixel_sizeinit)
 

@@ -59,6 +59,7 @@ beads = expand(config['save_path']+'/beads/'+'3d_linear_regression_{date}_method
         raw=config['raw'],
         method=config['method'])
 
+
 bead = config['save_path']+'/beads/'+'3d_linear_regression_{date}_method_{method}_fit_{raw}_image.pkl'
 
 tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
@@ -92,7 +93,7 @@ rule all:
         plots,
         tracks,
         doublets_file,
-        # beads
+        beads
 
 rule compute_detections:
     input:
@@ -230,18 +231,22 @@ rule compute_tracks:
         proportion_good_track = lambda wildcards: wildcards.prop,
         cxy = int(config["crop_size_xy"]),
         cz = int(config["crop_size_z"]),
+        pixel_sizeinit = config["pixel_size_init"],
         raw = lambda wildcards: wildcards.raw
     shell:
         """
-        python -m ipa.scripts.compute_tracks --input_file {input[0]} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw}
+        python -m ipa.scripts.compute_tracks --input_file {input[0]} --output_file {output} --method {params.method} --cutoff {params.cutoff} --proportion_good_track {params.proportion_good_track} --crop_size_xy {params.cxy} --crop_size_z {params.cz} --raw {params.raw} --pixel_sizeinit {params.pixel_sizeinit}
         """
 
 rule compute_doublets:
     input: detection
     output: doublets
+    params:
+        pixel_sizeinit = config["pixel_size_init"]
+
     shell:
         """
-        python -m ipa.scripts.distance_doublets --detections {input[0]} --output_file {output}
+        python -m ipa.scripts.distance_doublets --detections {input[0]} --output_file {output} --pixel_sizeinit {params.pixel_sizeinit}
         """
 
 
