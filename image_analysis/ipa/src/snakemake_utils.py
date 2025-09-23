@@ -111,3 +111,35 @@ def predict_stardist_complete(im:np.array,size:tuple = (976,976))->np.array:
 
     labels = np.asarray([resize(labels_resized[frame, ...], (im[0].shape[1], im[0].shape[1]), order=0) for frame in range(labels_resized.shape[0])])
     return labels
+
+def predict_stardist_complete_burst(im:np.array,size:tuple = (976,976))->np.array:
+    """function to predict using stardist
+
+    Args:
+        im (np.array): the z_projected image to segment
+        size (tuple): the size to expand the image (to be able to have better segmentation). Default: (256,256)
+
+    Returns:
+        np.array: the labels with the same shape as the input
+    """
+
+    #load model
+    model = StarDist2D.from_pretrained('2D_versatile_fluo')
+
+    # Resize the image
+    if np.shape(im) != size:
+        images_resized = np.asarray(
+                    [resize(np.max(im[frame, ...],axis=0).compute(), size, anti_aliasing=True) for frame in
+                    range(im.shape[
+                        0])])
+    else:
+        images_resized = im
+    # Predict
+    labels_resized, _ = zip(*[
+            model.predict_instances(normalize(images_resized[frame, ...])) for frame in tqdm(range(images_resized.shape[0]),position=0, leave=True)])
+    labels_resized = np.asarray(labels_resized)
+
+    # Resize back the labels
+
+    labels = np.asarray([resize(labels_resized[frame, ...], (im[0].shape[1], im[0].shape[1]), order=0) for frame in range(labels_resized.shape[0])])
+    return labels
