@@ -1,5 +1,5 @@
 <!-- start abstract -->
-# Localization_Precision_Estimation
+# Loop Extrusion Contact Dynamics
 
 ![alt text](image_analysis/image/illustration_data.png)
 
