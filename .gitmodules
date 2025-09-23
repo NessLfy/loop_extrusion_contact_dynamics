@@ -1,0 +1,3 @@
+[submodule "3D_loop_extrusion"]
+	path = 3D_loop_extrusion
+	url = https://github.com/Ubertini/3D-LoopExtrusion.git
