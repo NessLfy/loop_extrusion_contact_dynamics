@@ -11,11 +11,11 @@ This is a repository to analyze two color contact dynamics and estimate the loca
 ## Repository Overview
 
 The code for the image analysis can be found in the folder [image_analysis](image_analysis/). The folder contains:
-    * `docs`: Contains all project documentation.
-    * `infrastructure`: Contains detailed installation instructions for all requried tools.
-    * `ipa`: Contains all image-processing-and-analysis (ipa) scripts which are used for this project to generate final results.
-    * `runs`: Contains all config files which were used as inputs to the scripts in `ipa`.
-    * `scratchpad`: Contains everything that is nice to keep track of, but which is not used for any final results.
+* `docs`: Contains all project documentation.
+* `infrastructure`: Contains detailed installation instructions for all requried tools.
+* `ipa`: Contains all image-processing-and-analysis (ipa) scripts which are used for this project to generate final results.
+* `runs`: Contains all config files which were used as inputs to the scripts in `ipa`.
+* `scratchpad`: Contains everything that is nice to keep track of, but which is not used for any final results.
 
 The code for the polymer simulation can be found in the folder [3D_loop_extrusion](3D_loop_extrusion/)
 
