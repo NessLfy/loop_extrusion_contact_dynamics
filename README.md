@@ -1,7 +1,7 @@
 <!-- start abstract -->
 # Localization_Precision_Estimation
 
-![alt text](image/illustration_data.png)
+![alt text](image_analysis/image/illustration_data.png)
 
 This is a repository to analyze two color contact dynamics and estimate the localization precision from live cell imaging data
 
@@ -16,7 +16,7 @@ This is a repository to analyze two color contact dynamics and estimate the loca
 * `scratchpad`: Contains everything that is nice to keep track of, but which is not used for any final results.
 
 ## Setup
-Detailed install instructions can be found in [infrastructure/README.md](infrastructure/README.md).
+Detailed install instructions can be found in [infrastructure/README.md](image_analysis/infrastructure/README.md).
 
 ## Citation
 Do not forget to cite our [publication]() if you use any of our provided materials.
