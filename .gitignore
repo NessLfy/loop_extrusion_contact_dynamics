@@ -244,3 +244,8 @@ workflows/Snakefile_cells_pia_movies
 pyproject.toml
 cleanup.sh
 files_to_cleanup.txt
+launch_cluster_burst.sh
+print_dag.sh
+test_speed.sh
+train_n2v.sh
+ipa/scripts/distance_doublets_new.py
