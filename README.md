@@ -23,7 +23,7 @@ The code for the polymer simulation can be found in the folder [3D_loop_extrusio
 Detailed install instructions can be found in [infrastructure/README.md](image_analysis/infrastructure/README.md).
 
 ## Citation
-Do not forget to cite our [publication]() if you use any of our provided materials.
+Do not forget to cite our [publication](https://www.biorxiv.org/content/10.1101/2025.09.24.678119v1) if you use any of our provided materials.
 
 ---
 This project was generated with the [faim-ipa-project](https://fmi-faim.github.io/ipa-project-template/) copier template.
