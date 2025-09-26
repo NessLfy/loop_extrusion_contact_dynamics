@@ -239,16 +239,17 @@ rule compute_tracks:
         """
 
 rule compute_doublets:
-    input: detection
+    input: lambda wildcards: f"{config['folder_path']}{wildcards.filename}.nd2",labels_full,track
     output: doublets
     params:
-        pixel_sizeinit = config["pixel_size_init"]
-
+        diameterxy = lambda wildcards: wildcards.diameterxy,
+        diameterz = lambda wildcards: wildcards.diameterz,
+        threads = config["threads_doublets"],
+    threads: config["threads_doublets"]
     shell:
         """
-        python -m ipa.scripts.distance_doublets --detections {input[0]} --output_file {output} --pixel_sizeinit {params.pixel_sizeinit}
+        python -m ipa.scripts.distance_doublets --image_path {input[0]} --file_label {input[1]} --tracks {input[2]} --output_file {output} --cx {params.diameterxy} --cz {params.diameterz} --threads {params.threads}
         """
-
 
 EMAIL = config['email']
 
