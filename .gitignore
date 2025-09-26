@@ -248,5 +248,5 @@ image_analysis/launch_cluster_burst.sh
 image_analysis/print_dag.sh
 image_analysis/test_speed.sh
 image_analysis/train_n2v.sh
-image_analysis/ipa/scripts/distance_doublets_new.py
+# image_analysis/ipa/scripts/distance_doublets_new.py
 data_merged/*
