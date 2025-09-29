@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 import trackpy as tp
 from skimage.morphology import disk, white_tophat 
 import sys
-sys.path.append('../src/')
+sys.path.append('./ipa/src/')
 import detection_utils as det
 import correction_utils as cor
 import argparse
