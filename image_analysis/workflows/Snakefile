@@ -5,6 +5,8 @@ import nd2
 import glob
 from datetime import datetime
 import os
+import sys
+sys.path.append('./ipa/src/')
 from snakemake_utils import create_logger_format,create_logger_workflows,predict_stardist_complete
 from tqdm import tqdm
 from skimage.measure import regionprops_table
