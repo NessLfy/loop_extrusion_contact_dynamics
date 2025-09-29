@@ -3,6 +3,8 @@ import pandas as pd
 import nd2
 from glob import glob
 from multiprocessing import Pool
+import sys
+sys.path.append('../src/')
 import preprocessing_utils as pre
 import nd2
 from skimage.morphology import disk

@@ -2,6 +2,8 @@ import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import sys
+sys.path.append('../src/')
 from analysis_utils import process_df
 from create_tracks_no_beads import process_df_no_beads
 import re

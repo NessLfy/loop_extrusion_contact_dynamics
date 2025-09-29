@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from multiprocessing import Pool,Lock
 import dask.array as da
+import sys
+sys.path.append('../src/')
 from detection_utils import max5_detection
 from preprocessing_utils import max_filter,format
 import argparse
