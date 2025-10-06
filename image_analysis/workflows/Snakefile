@@ -75,7 +75,9 @@ tracks = expand("{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size
 
 track = "{path}/tracks/tracks_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
 
-doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet", filename=FILENAME,
+         diameterxy=config["diameterxy"],
+         diameterz=config["diameterz"],
          path=config["save_path"],
          crop_sizexy=config["crop_size_xy"],
          crop_size_z=config["crop_size_z"],
@@ -84,7 +86,8 @@ doublets_file = expand("{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz
          cutoff=config["cutoff"],
          prop=config["proportion_good_track"])
 
-doublets = "{path}/doublets/doublets_{filename}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+doublets = "{path}/doublets/doublets_{filename}_cxy_{diameterxy}_cz_{diameterz}_cxy_{crop_sizexy}_cz_{crop_size_z}_method_{method}_fit_{raw}_image_cutoff_{cutoff}_prop_{prop}.parquet"
+
 
 max_threads = os.cpu_count() 
 
